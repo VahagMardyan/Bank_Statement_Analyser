@@ -1,0 +1,12 @@
+[
+  {
+    "transaction_id": "0",
+    "category": "Salary",
+    "cleaned_description": "կապիտ. ըստ հաշվի ամերիաբանկ փբը գլխամասային գրասենյակ"
+  },
+  {
+    "transaction_id": "1",
+    "category": "Salary",
+    "cleaned_description": "անձնական փոխանցում հծ-վճարումներ"
+  }
+]

@@ -1,0 +1,26 @@
+cleaned_description,category
+yandex taxi ride,Transport
+gg taxi service,Transport
+city supermarket purchase,Supermarket
+sas hypermarket,Supermarket
+carrefour grocery,Supermarket
+restaurant dinner,Restaurants
+cafe latte,Restaurants
+electric bill payment,Utilities
+ucom internet,Utilities
+pharmacy medicine,Healthcare
+hospital visit,Healthcare
+cinema tickets,Entertainment
+netflix subscription,Entertainment
+clothing shop,Shopping
+electronics store,Shopping
+salary deposit,Salary
+atm cash withdrawal,ATM
+p2p transfer,Transfer
+bolt ride,Transport
+spar market,Supermarket
+kfc lunch,Restaurants
+veolia water,Utilities
+spotify premium,Entertainment
+amazon order,Shopping
+employer payroll,Salary

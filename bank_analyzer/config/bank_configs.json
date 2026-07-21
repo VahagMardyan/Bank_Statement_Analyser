@@ -1,0 +1,220 @@
+{
+  "banks": {
+    "ameriabank": {
+      "display_name": "Ameriabank",
+      "encoding": "utf-8",
+      "separator": ",",
+      "skip_rows": 0,
+      "column_mapping": {
+        "date": [
+          "transaction date",
+          "date",
+          "trans date",
+          "ամսաթիվ"
+        ],
+        "description": [
+          "description",
+          "details",
+          "narrative",
+          "նկարագրություն",
+          "merchant",
+          "purpose",
+          "comment"
+        ],
+        "amount": [
+          "amount",
+          "sum",
+          "debit",
+          "credit",
+          "գումար"
+        ],
+        "signed_amount": [
+          "մուտք",
+          "credit",
+          "debit",
+          "in/out"
+        ],
+        "type": [
+          "type",
+          "dr/cr",
+          "transaction type",
+          "տեսակ"
+        ]
+      },
+      "amount_sign_logic": "armenian_signed_column",
+      "date_format": "%d.%m.%Y"
+    },
+    "acba": {
+      "display_name": "ACBA Bank",
+      "encoding": "utf-8",
+      "separator": ";",
+      "skip_rows": 1,
+      "column_mapping": {
+        "date": [
+          "date",
+          "operation date",
+          "ամսաթիվ"
+        ],
+        "description": [
+          "description",
+          "purpose",
+          "comment",
+          "նկարագրություն"
+        ],
+        "amount": [
+          "amount",
+          "sum",
+          "debit amount",
+          "credit amount",
+          "գումար"
+        ],
+        "debit": [
+          "debit",
+          "debit amount",
+          "ելք"
+        ],
+        "credit": [
+          "credit",
+          "credit amount",
+          "մուտք"
+        ],
+        "type": [
+          "type",
+          "operation type",
+          "in/out"
+        ]
+      },
+      "amount_sign_logic": "debit_credit_columns",
+      "date_format": "%Y-%m-%d"
+    },
+    "inecobank": {
+      "display_name": "Inecobank",
+      "encoding": "utf-8-sig",
+      "separator": ",",
+      "skip_rows": 0,
+      "column_mapping": {
+        "date": [
+          "date",
+          "value date",
+          "trans. date",
+          "ամսաթիվ"
+        ],
+        "description": [
+          "description",
+          "beneficiary",
+          "details",
+          "նկարագրություն"
+        ],
+        "amount": [
+          "amount",
+          "transaction amount",
+          "debit",
+          "credit",
+          "գումար"
+        ],
+        "type": [
+          "type",
+          "d/c"
+        ]
+      },
+      "amount_sign_logic": "signed",
+      "date_format": "%d.%m.%Y"
+    },
+    "evocabank": {
+      "display_name": "Evocabank",
+      "encoding": "utf-8",
+      "separator": ",",
+      "skip_rows": 0,
+      "column_mapping": {
+        "date": [
+          "transaction date",
+          "date",
+          "trans date",
+          "ամսաթիվ"
+        ],
+        "description": [
+          "description",
+          "details",
+          "narrative",
+          "նկարագրություն",
+          "merchant",
+          "purpose",
+          "comment"
+        ],
+        "amount": [
+          "amount",
+          "sum",
+          "debit",
+          "credit",
+          "գումար"
+        ],
+        "signed_amount": [
+          "մուտք",
+          "credit",
+          "debit",
+          "in/out"
+        ],
+        "type": [
+          "type",
+          "dr/cr",
+          "transaction type",
+          "տեսակ"
+        ]
+      },
+      "amount_sign_logic": "armenian_signed_column",
+      "date_format": "%d.%m.%Y"
+    },
+    "auto_detect": {
+      "display_name": "Auto Detect",
+      "encoding": "utf-8",
+      "separator": null,
+      "skip_rows": 0,
+      "column_mapping": {
+        "date": [
+          "date",
+          "transaction date",
+          "trans date",
+          "operation date",
+          "value date",
+          "ամսաթիվ"
+        ],
+        "description": [
+          "description",
+          "details",
+          "narrative",
+          "purpose",
+          "comment",
+          "merchant",
+          "beneficiary",
+          "նկարագրություն"
+        ],
+        "amount": [
+          "amount",
+          "sum",
+          "debit",
+          "credit",
+          "debit amount",
+          "credit amount",
+          "transaction amount",
+          "գումար"
+        ],
+        "signed_amount": [
+          "մուտք",
+          "credit",
+          "debit",
+          "in/out"
+        ],
+        "type": [
+          "type",
+          "dr/cr",
+          "transaction type",
+          "operation type",
+          "d/c",
+          "in/out"
+        ]
+      },
+      "amount_sign_logic": "armenian_signed_column",
+      "date_format": null
+    }
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "Transport": [
+    "yandex",
+    "gg taxi",
+    "gg",
+    "taxi",
+    "տաքսի",
+    "յանդեքս"
+  ],
+  "Salary": [
+    "salary",
+    "salary transfer",
+    "աշխատավարձ",
+    "վարձատրություն"
+  ],
+  "Restaurants": [
+    "restaurant",
+    "tavern",
+    "dargett",
+    "cafe",
+    "pub",
+    "ռեստորան",
+    "պանդոկ",
+    "սրճարան"
+  ],
+  "Supermarket": [
+    "supermarket",
+    "sas",
+    "yerevan city",
+    "zovq",
+    "carrefour",
+    "սուպերմարկետ",
+    "սիթի",
+    "զովք"
+  ],
+  "Shopping": [
+    "bookstore",
+    "zangak",
+    "clothing",
+    "apparel",
+    "գրախանութ",
+    "զանգակ",
+    "խանութ"
+  ],
+  "Utilities": [
+    "utility",
+    "electricity",
+    "gaz",
+    "veolia",
+    "հծ-վճարումներ",
+    "կոմունալ"
+  ],
+  "Transfer": [
+    "transfer",
+    "փոխանցում",
+    "համալրում",
+    "telcell",
+    "idram"
+  ]
+}
