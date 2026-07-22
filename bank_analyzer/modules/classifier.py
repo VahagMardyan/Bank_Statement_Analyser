@@ -12,21 +12,12 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-DEFAULT_CATEGORIES = [
-    "Transport",
-    "Supermarket",
-    "Cafes and Restaurants",
-    "Utilities",
-    "Healthcare",
-    "Entertainment",
-    "Shopping",
-    "Transfer",
-    "Salary",
-    "ATM",
-    "Fee",
-    "Other",
-]
+def get_categories_from_json(file_path = "./config/category_rules.json") -> list:
+    with open(file_path, 'r', encoding="utf-8") as file:
+        data = json.load(file)
+    return list(data.keys())
 
+DEFAULT_CATEGORIES = get_categories_from_json()
 
 class TransactionClassifier:
     """Classifies transactions using exact keyword matching + Vector Similarity fallback."""
