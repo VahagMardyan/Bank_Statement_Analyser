@@ -1,6 +1,7 @@
 import pandas as pd
 
 armenian_data_standard = [
+    # YYYY-MM-DD Format
     {"Ամսաթիվ": "2026-06-01", "Նկարագրություն": "Երևան Սիթի Սուպերմարկետ", "Գումար": -18500},
     {"Ամսաթիվ": "2026-06-02", "Նկարագրություն": "Յանդեքս Գո Տաքսի Երևան", "Գումար": -1400},
     {"Ամսաթիվ": "2026-06-05", "Նկարագրություն": "Աշխատավարձի փոխանցում Սինոփսիս", "Գումար": 550000},
@@ -30,4 +31,4 @@ df1.to_csv("test_armenian_standard.csv", index=False, encoding="utf-8-sig")
 df2 = pd.DataFrame(armenian_data_split)
 df2.to_csv("test_armenian_split.csv", index=False, encoding="utf-8-sig")
 
-print("'test_armenian_standard.csv' և 'test_armenian_split.csv' ֆայլերը ստեղծվեցին։")
+print("'test_armenian_standard.csv' և 'test_armenian_split.csv' created successfully!")

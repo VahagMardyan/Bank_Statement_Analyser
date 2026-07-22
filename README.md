@@ -1,6 +1,6 @@
 # Bank Statement Analyzer
 
-A modular, production-ready application for parsing, standardizing, categorizing, and visualizing bank statements from CSV files. Supports Armenian and English bank exports with hybrid rule-based + ML categorization.
+A modular, production-ready application for parsing, standardizing, categorizing, and visualizing bank statements from CSV, XLS and XLSX files. Supports Armenian and English bank exports with hybrid rule-based + ML categorization.
 
 ## Project Structure
 

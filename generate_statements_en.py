@@ -1,6 +1,7 @@
 import pandas as pd
 
 test_data = [
+    # YYYY-MM-DD Format
     {"Date": "2026-06-01", "Description": "Yerevan City Supermarket", "Amount": -12500},
     {"Date": "2026-06-02", "Description": "Yandex Go Taxi Yerevan", "Amount": -1800},
     {"Date": "2026-06-05", "Description": "Salary Transfer ACME LLC", "Amount": 500000},

@@ -244,29 +244,49 @@ class BankStatementLoader:
             return raw_df
 
         header_rows = raw_df.iloc[header_idx : header_idx + 2]
+
+        def _looks_like_data(value: str) -> bool:
+            if not value:
+                return False
+            if re.match(r"^\d{1,2}[./\-]\d{1,2}|^\d{4}[./\-]\d{1,2}", value):
+                return True
+            return bool(re.match(r"^[+\-]?[\d.,\s]+$", value))
+
+        row_below_is_data = False
+        if len(header_rows) > 1:
+            row_below_is_data = any(
+                _looks_like_data(self._normalize_column_name(v))
+                for v in header_rows.iloc[1]
+                if pd.notna(v)
+            )
+
+        has_second_header = len(header_rows) > 1 and not row_below_is_data
+
         combined_headers = []
+
+        group_row = raw_df.iloc[header_idx - 1] if header_idx > 0 else None
 
         for col_idx in range(raw_df.shape[1]):
             val1 = self._normalize_column_name(header_rows.iloc[0, col_idx])
-            val2 = (
-                self._normalize_column_name(header_rows.iloc[1, col_idx])
-                if len(header_rows) > 1
-                else ""
-            )
 
-            if val2 and not re.match(r"^\d{1,2}[./\-]\d{1,2}", val2):
-                combined = f"{val1} {val2}".strip()
+            if has_second_header:
+                val2 = self._normalize_column_name(header_rows.iloc[1, col_idx])
+                combined = f"{val1} {val2}".strip() if val2 else val1
             else:
                 combined = val1
+
+            if not combined and group_row is not None:
+                combined = self._normalize_column_name(group_row.iloc[col_idx])
+
             combined_headers.append(combined)
 
-        skip_offset = 2 if len(header_rows) > 1 and val2 else 1
+        skip_offset = 2 if has_second_header else 1
         df = raw_df.iloc[header_idx + skip_offset :].copy()
         df.columns = combined_headers
 
         df = df.loc[:, df.columns != ""]
         return df.reset_index(drop=True)
-
+    
     def _resolve_column(
         self, df: pd.DataFrame, candidates: list[str]
     ) -> Optional[str]:
@@ -287,15 +307,15 @@ class BankStatementLoader:
         return None
 
     def _resolve_description_column(
-            self,
-            df: pd.DataFrame,
-            mapping: dict[str, list[str]],
-            date_col: str,
-            amount_col: str
+        self,
+        df: pd.DataFrame,
+        mapping: dict[str, list[str]],
+        date_col: str,
+        amount_col: str,
     ) -> Optional[str]:
         excluded = {
             self._normalize_column_name(date_col).lower(),
-            self._normalize_column_name(amount_col).lower()
+            self._normalize_column_name(amount_col).lower(),
         }
 
         debit_col = self._resolve_column(df, mapping.get("debit", ["debit", "ելք", "out"]))
@@ -308,7 +328,7 @@ class BankStatementLoader:
 
         candidates = mapping.get(
             "description",
-            ["նկարագրություն", "description", "details", "purpose", "narrative", "merchant", "comment"]
+            ["նկարագրություն", "description", "details", "purpose", "narrative", "merchant", "comment"],
         )
 
         for candidate in candidates:
@@ -319,20 +339,20 @@ class BankStatementLoader:
 
         for col in df.columns:
             col_norm = self._normalize_column_name(col).lower()
-            if col_norm not in excluded:
+            if col_norm in excluded:
                 continue
             sample = df[col].dropna().astype(str).head(20)
             if sample.empty:
                 continue
 
             text_ratio = sample.str.contains(
-                r"[A-Za-z\u0531-\u0587]{2,}", regex=True, na=False
+                r"[A-Za-zԱ-ֆ]{2,}", regex=True, na=False
             )
-            if text_ratio >= 0.3:
+            if text_ratio.mean() >= 0.3:
                 return col
 
         return None
-    
+        
     def _parse_amount_and_type(
         self, df: pd.DataFrame, mapping: dict[str, list[str]], bank_cfg: dict[str, Any]
     ) -> pd.DataFrame:
@@ -399,7 +419,26 @@ class BankStatementLoader:
             if parsed.notna().sum() > 0:
                 return parsed
 
-        return pd.to_datetime(cleaned_series, dayfirst=True, errors="coerce")
+        iso_mask = cleaned_series.str.match(r"^\d{4}[./\-]", na=False)
+        result = pd.Series(
+            pd.NaT, index=cleaned_series.index, dtype="datetime64[ns]"
+        )
+
+        if iso_mask.any():
+            result.loc[iso_mask] = pd.to_datetime(
+                cleaned_series[iso_mask],
+                format="mixed",
+                dayfirst=False,
+                errors="coerce",
+            )
+        if (~iso_mask).any():
+            result.loc[~iso_mask] = pd.to_datetime(
+                cleaned_series[~iso_mask],
+                format="mixed",
+                dayfirst=True,
+                errors="coerce",
+            )
+        return result
 
     def _read_raw_file(
             self,
@@ -520,7 +559,7 @@ class BankStatementLoader:
         standardized = standardized.dropna(subset=["date", "amount"])
         standardized = standardized[standardized["amount"] > 0]
         standardized = standardized[
-            ~standardized["description"].map(self._is_balance_row)
+            ~standardized["description"].map(self._is_balance_row).astype(bool)
         ]
         standardized = standardized.reset_index(drop=True)
         standardized["transaction_id"] = standardized.index.astype(str)

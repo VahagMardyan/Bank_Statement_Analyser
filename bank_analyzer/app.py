@@ -24,11 +24,30 @@ BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_BUDGETS = {
     "Transport": 50000,
     "Supermarket": 80000,
-    "Restaurants": 40000,
+    "Cafes and Restaurants": 40000,
     "Utilities": 30000,
     "Entertainment": 20000,
     "Shopping": 50000,
 }
+
+
+def convert_df_to_csv_bytes(
+    df: pd.DataFrame, columns: list[str] | None = None
+) -> bytes:
+    """Converts DataFrame to UTF-8-SIG encoded CSV bytes for specified or all columns."""
+    target_df = df[columns] if columns is not None else df
+    return target_df.to_csv(index=False).encode("utf-8-sig")
+
+
+def convert_df_to_excel_bytes(
+    df: pd.DataFrame, columns: list[str] | None = None
+) -> bytes:
+    """Converts DataFrame to Excel (.xlsx) bytes using openpyxl for specified or all columns."""
+    target_df = df[columns] if columns is not None else df
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        target_df.to_excel(writer, index=False, sheet_name="Transactions")
+    return output.getvalue()
 
 
 def init_session_state() -> None:
@@ -58,9 +77,6 @@ def render_metrics(kpis: dict) -> None:
 
 
 def tab_visual_analytics(df: pd.DataFrame) -> None:
-
-    # df['amount'] = pd.to_numeric(df["amount"], errors='coerce')
-
     expenses = df[df["transaction_type"] == "expense"]
     summary = get_category_summary(df)
 
@@ -121,7 +137,7 @@ def tab_transaction_explorer(df: pd.DataFrame) -> None:
             | filtered["cleaned_description"].str.contains(search, case=False, na=False)
         ]
 
-    display_cols = [
+    available_cols = [
         "transaction_id",
         "date",
         "description",
@@ -131,11 +147,49 @@ def tab_transaction_explorer(df: pd.DataFrame) -> None:
         "confidence",
         "method",
     ]
+
+    selected_cols = st.multiselect(
+        "Select Columns to Display & Export",
+        options=available_cols,
+        default=available_cols[0 : len(available_cols)-2], # "confidence" and "method" are not selected by default
+    )
+
+    if not selected_cols:
+        st.warning("Please select at least one column to display and export.")
+        return
+
+    export_df = filtered.copy()
+    if "date" in export_df.columns:
+        export_df["date"] = export_df["date"].dt.strftime("%Y-%m-%d")
+
     st.dataframe(
-        filtered[display_cols].assign(date=filtered["date"].dt.strftime("%Y-%m-%d")),
+        export_df[selected_cols],
         use_container_width=True,
         hide_index=True,
     )
+
+    if not export_df.empty:
+        col_fmt, col_btn = st.columns([1, 2], vertical_alignment="bottom")
+        with col_fmt:
+            export_format = st.selectbox("Export Format", ["Excel (.xlsx)", "CSV"])
+        with col_btn:
+            st.write("")  # Alignment spacing
+            if export_format == "CSV":
+                file_bytes = convert_df_to_csv_bytes(export_df, columns=selected_cols)
+                file_name = "transactions_export.csv"
+                mime = "text/csv"
+            else:
+                file_bytes = convert_df_to_excel_bytes(export_df, columns=selected_cols)
+                file_name = "transactions_export.xlsx"
+                mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+            st.download_button(
+                label=f"📥 Download as {export_format}",
+                data=file_bytes,
+                file_name=file_name,
+                mime=mime,
+                use_container_width=True,
+            )
 
     st.divider()
     st.subheader("Manual Category Override")
@@ -182,7 +236,6 @@ def tab_budget_anomalies(df: pd.DataFrame) -> None:
     if not budget_report.empty:
         for _, row in budget_report.iterrows():
             pct = min(row["pct_used"], 100)
-            color = "normal" if not row["over_budget"] else "off"
             st.write(f"**{row['category']}** — {row['actual']:,.0f} / {row['budget']:,.0f} AMD")
             st.progress(min(pct / 100, 1.0))
             if row["over_budget"]:
@@ -219,7 +272,7 @@ def main() -> None:
     with st.sidebar:
         st.header("Configuration")
         uploaded = st.file_uploader(
-            "Upload Bank Statement (CSV or Excel)",
+            "Upload Bank Statement (CSV / Excel)",
             type=["csv", "xlsx", "xls"],
         )
         loader: BankStatementLoader = st.session_state.loader
@@ -236,8 +289,8 @@ def main() -> None:
 
         if uploaded is not None:
             if st.button("Load & Analyze", type="primary"):
-                suffix = Path(uploaded.name).suffix.lower() or ".csv"
-                tmp_path = BASE_DIR / "data" / f"_upload{suffix}"
+                file_ext = Path(uploaded.name).suffix.lower()
+                tmp_path = BASE_DIR / "data" / f"_upload{file_ext}"
                 tmp_path.parent.mkdir(parents=True, exist_ok=True)
                 tmp_path.write_bytes(uploaded.getvalue())
                 try:
@@ -264,13 +317,14 @@ def main() -> None:
             df = None
 
     if df is None or df.empty:
-        st.info("Upload a CSV or Excel bank statement using the sidebar to get started.")
+        st.info("Upload a statement file (CSV, XLSX, XLS) using the sidebar to get started.")
         st.markdown(
             """
             **Supported features:**
-            - Multi-bank CSV/Excel parsing (Ameriabank, ACBA, Inecobank, Evocabank, auto-detect)
+            - Multi-bank parsing (Ameriabank, ACBA, Inecobank, Evocabank, auto-detect)
+            - Supports CSV, XLSX, and XLS formats
             - Hybrid rule + ML categorization
-            - Interactive charts and budget tracking
+            - Interactive charts, budget tracking, and export functionality
             """
         )
         return
