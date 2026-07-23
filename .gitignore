@@ -45,4 +45,10 @@ Thumbs.db
 .ipynb_checkpoints
 *.log
 
+.streamlit/secrets.toml
+
+~$*.xlsx
+~$*.xls
+
 /Real_Statements
+_upload.*

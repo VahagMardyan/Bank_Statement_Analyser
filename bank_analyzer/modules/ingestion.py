@@ -160,7 +160,17 @@ class BankStatementLoader:
         sign = -1.0 if text.lstrip().startswith("-") else 1.0
         text = re.sub(r"^\s*[+\-]\s*", "", text)
         text = re.sub(r"(?i)(amd|usd|eur|rub|֏)", "", text)
-        text = text.replace(" ", "").replace(",", ".")
+        text = text.replace(" ", "")
+
+        if "," in text and "." in text:
+            if text.rfind(".") > text.rfind(","):
+                text = text.replace(",", "")
+            else:
+                text = text.replace(".", "").replace(",", ".")
+        elif "," in text:
+            tail_len = len(text.split(",")[-1])
+            text = text.replace(",", ".") if tail_len == 2 else text.replace(",", "")
+
         text = re.sub(r"[^\d.]", "", text)
         if not text:
             return None

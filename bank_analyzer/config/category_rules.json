@@ -59,7 +59,7 @@
     "վերադարձ",
     "cash back",
     "% կապիտ",
-    "cash-back"
+    "cash back"
   ],
   "Cafes and Restaurants": [
     "restaurant",
@@ -92,19 +92,21 @@
     "art lunch",
     "wolt",
     "glovo",
-    "menu.am",
+    "menu am",
     "yandex eats",
     "bakery",
     "confectionery",
     "cofix",
-    "starbucks"
+    "starbucks",
+    "yeremyan shaurma",
+    "food court"
   ],
   "Supermarket": [
     "supermarket",
     "sas",
     "sas market",
     "yerevan city",
-    "yerevan-city",
+    "yerevan city",
     "zovq",
     "nor zovq",
     "carrefour",
@@ -134,12 +136,15 @@
     "sportmaster",
     "intersport",
     "zara",
-    "h&m",
+    "h m",
     "lc waikiki",
     "mango",
     "mall",
     "shopping center",
     "electronics",
+    "vlv electronics",
+    "vega",
+    "vesta",
     "dns",
     "zigzag",
     "mobile center",
@@ -148,7 +153,7 @@
     "furniture",
     "home center",
     "kesaria",
-    "yerevan.ru electronics"
+    "yerevan ru electronics"
   ],
   "E-commerce": [
     "aliexpress",
@@ -160,7 +165,7 @@
     "shein",
     "online store",
     "online shop",
-    "e-commerce",
+    "e commerce",
     "paypal"
   ],
   "Subscriptions": [
@@ -168,16 +173,16 @@
     "spotify",
     "youtube premium",
     "telegram premium",
-    "apple.com/bill",
+    "apple com bill",
     "icloud",
     "google play",
-    "google *",
+    "google",
     "microsoft",
     "office 365",
     "chatgpt",
     "openai",
     "anthropic",
-    "claude.ai",
+    "claude ai",
     "playstation network",
     "xbox",
     "steam",
@@ -200,7 +205,7 @@
     "ջուր",
     "ucom",
     "viva",
-    "viva-mts",
+    "viva mts",
     "team",
     "team telecom",
     "beeline",
@@ -255,7 +260,7 @@
     "fitness",
     "gym",
     "world class",
-    "gold's gym",
+    "gold s gym",
     "fitbox",
     "billiard",
     "bowling",
@@ -265,7 +270,7 @@
     "zoo",
     "waterworld",
     "ferris wheel",
-    "tickets.am",
+    "tickets am",
     "kinoafisha"
   ],
   "Education": [
@@ -288,7 +293,8 @@
     "քոլեջ",
     "կրթահամալիր",
     "ակադեմիա",
-    "դպրոց"
+    "դպրոց",
+    "ուսման"
   ],
   "Travel": [
     "flyone",
@@ -298,7 +304,7 @@
     "airline",
     "airport",
     "zvartnots",
-    "booking.com",
+    "booking com",
     "airbnb",
     "hotel",
     "hostel",
@@ -306,7 +312,7 @@
     "tour operator",
     "travel agency",
     "visa fee",
-    "ուղևորափոխադրում"
+    "ուղեւորափոխադրում"
   ],
   "Beauty and Personal Care": [
     "salon",
@@ -317,7 +323,7 @@
     "manicure",
     "cosmetics",
     "sephora",
-    "l'occitane",
+    "l occitane",
     "parfum",
     "վարսավիրանոց"
   ],
@@ -388,7 +394,8 @@
     "cash deposit",
     "բանկոմատ",
     "կանխիկացում",
-    "կանխիկ մուտք"
+    "կանխիկ մուտք",
+    "անձնական փոխանցում"
   ],
   "Transfer": [
     "անձնական փոխանցում",
@@ -401,7 +408,7 @@
     "idram",
     "easypay",
     "mobidram",
-    "թել-սել",
+    "թել սել",
     "pension",
     "social payment",
     "card to card",
