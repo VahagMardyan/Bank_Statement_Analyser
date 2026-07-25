@@ -126,3 +126,8 @@ Edit `config/category_rules.json`:
 ```
 
 Or use the **Manual Category Override** feature in either UI — new keywords are persisted automatically.
+
+
+# Web-Page
+
+Visit [this link](https://statementanalyser-vahagmardyan.streamlit.app/) for using this application from any other device.
