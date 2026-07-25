@@ -12,7 +12,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-def get_categories_from_json(file_path : Path = Path(__file__).resolve().parent.parent / "config" / "category_rules.json") -> list:
+def get_categories_from_json(file_path = Path(__file__).resolve().parent.parent / "config" / "category_rules.json") -> list:
     with open(file_path, 'r', encoding="utf-8") as file:
         data = json.load(file)
     return list(data.keys())
