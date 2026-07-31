@@ -1,4 +1,4 @@
-"""CSV and Excel ingestion and standardization for bank statements."""
+"""CSV, Excel, and PDF ingestion and standardization for bank statements."""
 
 from __future__ import annotations
 import json
@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Optional
 import numpy as np
 import pandas as pd
+import pdfplumber
 
 NOISE_TOKENS: frozenset[str] = frozenset(
     {
@@ -42,6 +43,14 @@ DATE_PATTERN = re.compile(
 LONG_NUMERIC_ID = re.compile(r"\b\d{6,}\b")
 WHITESPACE = re.compile(r"\s+")
 SIGNED_AMOUNT_PATTERN = re.compile(r"^\s*[+\-]\s*[\d\s]+(?:[.,]\d+)?")
+
+# Used by the borderless/lineless PDF layout parser (see
+# _extract_borderless_pdf_transactions), where records are recovered from
+# word positions rather than pdfplumber's ruled-table detection.
+BORDERLESS_DATE_TOKEN = re.compile(r"^\d{2}/\d{2}/\d{2},?$")
+BORDERLESS_TIME_TOKEN = re.compile(r"^\d{2}:\d{2}$")
+BORDERLESS_AMOUNT_TOKEN = re.compile(r"^[+\-][\d,]+\.\d{2}$")
+BORDERLESS_CURRENCY_TOKEN = re.compile(r"^[A-Z]{3}$")
 
 BALANCE_ROW_KEYWORDS = (
     "մնացորդ",
@@ -132,6 +141,15 @@ class BankStatementLoader:
             return False
 
     @staticmethod
+    def _is_pdf_file(path: Path) -> bool:
+        if path.suffix.lower() == ".pdf":
+            return True
+        try:
+            return path.read_bytes()[:5] == b"%PDF-"
+        except Exception:
+            return False
+
+    @staticmethod
     def _excel_engine(path: Path) -> str:
         try:
             magic = path.read_bytes()[:4]
@@ -197,6 +215,12 @@ class BankStatementLoader:
     def detect_bank(self, file_path: str | Path) -> str:
         path = Path(file_path)
         try:
+            if self._is_pdf_file(path):
+                rows = self._extract_pdf_tables(path)[:25]
+                if rows:
+                    raw_df = pd.DataFrame(rows)
+                    return self._detect_bank_from_content(raw_df)
+                return "auto_detect"
             if self._is_excel_file(path):
                 engine = self._excel_engine(path)
                 raw_df = pd.read_excel(path, header=None, engine=engine, nrows=25)
@@ -328,8 +352,8 @@ class BankStatementLoader:
             self._normalize_column_name(amount_col).lower(),
         }
 
-        debit_col = self._resolve_column(df, mapping.get("debit", ["debit", "ելք", "out"]))
-        credit_col = self._resolve_column(df, mapping.get("credit", ["credit", "մուտք", "in"]))
+        debit_col = self._resolve_column(df, mapping.get("debit", ["debit", "դեբետ", "ելք", "out"]))
+        credit_col = self._resolve_column(df, mapping.get("credit", ["credit", "կրեդիտ", "մուտք", "in"]))
 
         if debit_col:
             excluded.add(self._normalize_column_name(debit_col).lower())
@@ -368,10 +392,10 @@ class BankStatementLoader:
     ) -> pd.DataFrame:
         debit_col = self._resolve_column(
             df,
-            mapping.get("debit", ["debit", "ելք", "ելքեր", "out", "withdrawal"]),
+            mapping.get("debit", ["debit", "դեբետ", "ելք", "ելքեր", "out", "withdrawal"]),
         )
         credit_col = self._resolve_column(
-            df, mapping.get("credit", ["credit", "մուտք", "մուտքեր", "in", "deposit"])
+            df, mapping.get("credit", ["credit", "կրեդիտ", "մուտք", "մուտքեր", "in", "deposit"])
         )
 
         if debit_col and credit_col:
@@ -419,7 +443,7 @@ class BankStatementLoader:
             return series
 
         cleaned_series = series.astype(str).str.extract(
-            r"(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4})"
+            r"(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}(?:[,\s]+\d{1,2}:\d{2}(?::\d{2})?)?)"
         )[0]
 
         if date_format:
@@ -428,7 +452,7 @@ class BankStatementLoader:
             )
             if parsed.notna().sum() > 0:
                 return parsed
-
+            
         iso_mask = cleaned_series.str.match(r"^\d{4}[./\-]", na=False)
         result = pd.Series(
             pd.NaT, index=cleaned_series.index, dtype="datetime64[ns]"
@@ -450,13 +474,244 @@ class BankStatementLoader:
             )
         return result
 
+    @staticmethod
+    def _extract_pdf_tables(path: Path) -> list[list[Any]]:
+        if pdfplumber is None:
+            raise ImportError(
+                "pdfplumber is required to read PDF statements. "
+                "Install it with: pip install pdfplumber"
+            )
+
+        strategies = [
+            {},  # pdfplumber default: line-based detection
+            {
+                "vertical_strategy": "text",
+                "horizontal_strategy": "text",
+            },
+        ]
+
+        best_rows: list[list[Any]] = []
+        with pdfplumber.open(path) as pdf:
+            for settings in strategies:
+                rows: list[list[Any]] = []
+                for page in pdf.pages:
+                    tables = (
+                        page.extract_tables(settings)
+                        if settings
+                        else page.extract_tables()
+                    )
+                    for table in tables:
+                        rows.extend(table)
+                if len(rows) > len(best_rows):
+                    best_rows = rows
+
+        return best_rows
+
+    @staticmethod
+    def _extract_borderless_pdf_transactions(path: Path) -> Optional[pd.DataFrame]:
+        """Recovers transactions from a borderless/lineless PDF statement
+        layout (e.g. Ameriabank's account-statement export) where there are
+        no ruling lines and each column wraps its text onto a different
+        number of physical lines per record, so pdfplumber's line- or
+        text-position table detection cannot reconstruct clean rows -
+        adjacent records' wrapped lines get interleaved by pdfplumber
+        because it groups words by absolute vertical position only,
+        ignoring which column they belong to.
+
+        Instead, this anchors on the two unambiguous, single-line, regex-
+        identifiable tokens every record has exactly once - the "date,"
+        column value (leftmost, e.g. "13/07/26,") marks where a record
+        starts, and the trailing amount/currency tokens (rightmost, e.g.
+        "-710.00 AMD -710.00 AMD") are extracted directly. Every other word
+        in the vertical band between one record's date token and the next
+        is bucketed into type/counterparty/description by x-position and
+        joined back together, since those fields are free text and don't
+        need to be unambiguous the way dates and amounts do.
+
+        Returns a DataFrame with plain "date"/"description"/"amount"
+        columns (already resolvable by the standard column-mapping logic)
+        or None if this page layout isn't detected.
+        """
+        records: list[dict[str, Any]] = []
+
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                words = page.extract_words()
+                if not words:
+                    continue
+
+                col1_dates = sorted(
+                    (w for w in words if BORDERLESS_DATE_TOKEN.match(w["text"]) and w["x0"] < 80),
+                    key=lambda w: w["top"],
+                )
+                if not col1_dates:
+                    continue
+
+                tops = [w["top"] for w in col1_dates]
+                gaps = [tops[i + 1] - tops[i] for i in range(len(tops) - 1)]
+                lead_gap = gaps[0] if gaps else 40.0
+                trail_gap = gaps[-1] if gaps else 40.0
+                bounds = (
+                    [tops[0] - lead_gap]
+                    + [(tops[i] + tops[i + 1]) / 2 for i in range(len(tops) - 1)]
+                    + [tops[-1] + trail_gap]
+                )
+
+                for i in range(len(col1_dates)):
+                    lo, hi = bounds[i], bounds[i + 1]
+                    rec_words = [w for w in words if lo <= w["top"] < hi]
+                    records.append(BankStatementLoader._parse_borderless_record(rec_words))
+
+        if not records:
+            return None
+
+        rows = [
+            r
+            for r in records
+            if r["date"] and r["amount_acct"] is not None
+        ]
+        if not rows:
+            return None
+
+        return pd.DataFrame(
+            {
+                "date": [f"{r['date']} {r['time'] or ''}".strip() for r in rows],
+                "description": [r["description"] for r in rows],
+                "amount": [r["amount_acct"] for r in rows],
+            }
+        )
+
+    @staticmethod
+    def _parse_borderless_record(rec_words: list[dict[str, Any]]) -> dict[str, Any]:
+        """Splits one record's words (see _extract_borderless_pdf_transactions)
+        into date/time/type/counterparty/description/amount fields using
+        regex token matching plus x-position bucketing."""
+        rec_sorted = sorted(rec_words, key=lambda w: (round(w["top"]), w["x0"]))
+
+        date1 = date2 = time1 = time2 = None
+        amount_tokens: list[dict[str, Any]] = []
+        remaining: list[dict[str, Any]] = []
+
+        for w in rec_sorted:
+            x0, text = w["x0"], w["text"]
+            if BORDERLESS_DATE_TOKEN.match(text) and x0 < 160:
+                if x0 < 80:
+                    date1 = text.rstrip(",")
+                else:
+                    date2 = text.rstrip(",")
+            elif BORDERLESS_TIME_TOKEN.match(text) and x0 < 160:
+                if x0 < 80:
+                    time1 = text
+                else:
+                    time2 = text
+            elif x0 >= 560:
+                amount_tokens.append(w)
+            else:
+                remaining.append(w)
+
+        amount_tokens.sort(key=lambda w: (round(w["top"]), w["x0"]))
+        pairs: list[tuple[str, str]] = []
+        i = 0
+        texts = [w["text"] for w in amount_tokens]
+        while i < len(texts) - 1:
+            if BORDERLESS_AMOUNT_TOKEN.match(texts[i]) and BORDERLESS_CURRENCY_TOKEN.match(texts[i + 1]):
+                pairs.append((texts[i], texts[i + 1]))
+                i += 2
+            else:
+                i += 1
+
+        amount_native, amount_acct = None, None
+        if len(pairs) >= 2:
+            amount_native = pairs[0][0]
+            amount_acct = pairs[-1][0]
+        elif len(pairs) == 1:
+            amount_native = amount_acct = pairs[0][0]
+
+        type_words, counterparty_words, description_words = [], [], []
+        for w in remaining:
+            x0 = w["x0"]
+            if x0 < 260:
+                type_words.append(w)
+            elif x0 < 380:
+                counterparty_words.append(w)
+            else:
+                description_words.append(w)
+
+        def join(ws: list[dict[str, Any]]) -> str:
+            ws_sorted = sorted(ws, key=lambda w: (round(w["top"]), w["x0"]))
+            return " ".join(w["text"] for w in ws_sorted)
+
+        txn_type = join(type_words)
+        counterparty = join(counterparty_words)
+        description_text = join(description_words)
+        description = " ".join(part for part in (description_text, counterparty) if part) or txn_type
+
+        return {
+            "date": date1,
+            "time": time1,
+            "description": description,
+            "amount_native": amount_native,
+            "amount_acct": (
+                BankStatementLoader._normalize_amount_string(amount_acct)
+                if amount_acct is not None
+                else None
+            ),
+        }
+
+    def _read_pdf_file(self, path: Path) -> pd.DataFrame:
+        """Reads a PDF bank statement into a raw DataFrame and extracts
+        table content, reusing the same header-detection/normalization
+        pipeline used for CSV and Excel statements."""
+        positional_df = self._extract_borderless_pdf_transactions(path)
+        if positional_df is not None and not positional_df.empty:
+            return positional_df
+
+        rows = self._extract_pdf_tables(path)
+        raw_df = None
+        if rows:
+            widths = [len(r) for r in rows]
+            target_width = max(set(widths), key=widths.count)
+            normalized_rows = [
+                (row + [None] * (target_width - len(row)))[:target_width]
+                for row in rows
+            ]
+            candidate_df = pd.DataFrame(normalized_rows)
+            extracted = self._find_and_extract_table(candidate_df)
+            if len(extracted) > 0 and all(
+                isinstance(c, str) and c for c in extracted.columns
+            ):
+                raw_df = extracted
+
+        if raw_df is None:
+            raise ValueError(
+                f"Could not find any table in {path.name}. "
+                "This may be a scanned/image-only PDF, which isn't "
+                "supported - try exporting the statement as CSV or Excel "
+                "instead."
+            )
+
+        return raw_df
+
+        widths = [len(r) for r in rows]
+        target_width = max(set(widths), key=widths.count)
+        normalized_rows = [
+            (row + [None] * (target_width - len(row)))[:target_width]
+            for row in rows
+        ]
+
+        raw_df = pd.DataFrame(normalized_rows)
+        return self._find_and_extract_table(raw_df)
+
     def _read_raw_file(
             self,
             path : Path,
             bank_key : str,
             encoding : Optional[str] = None
     ) -> pd.DataFrame:
-        """ Reads CSV or Excel file into a raw DataFrame and extracts table content. """
+        """ Reads CSV, Excel, or PDF file into a raw DataFrame and extracts table content. """
+        if self._is_pdf_file(path):
+            return self._read_pdf_file(path)
+
         if self._is_excel_file(path):
             engine = self._excel_engine(path)
             raw_df = pd.read_excel(path, header=None, engine=engine)

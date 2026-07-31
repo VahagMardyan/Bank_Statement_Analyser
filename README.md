@@ -1,6 +1,6 @@
 # Bank Statement Analyzer
 
-A modular, production-ready application for parsing, standardizing, categorizing, and visualizing bank statements from CSV, XLS and XLSX files. Supports Armenian and English bank exports with hybrid rule-based + ML categorization.
+A modular, production-ready application for parsing, standardizing, categorizing, and visualizing bank statements from CSV, XLS, XLSX  and PDF files. Supports Armenian and English bank exports with hybrid rule-based + ML categorization.
 
 ## Project Structure
 
@@ -19,7 +19,7 @@ A modular, production-ready application for parsing, standardizing, categorizing
 │  │   ├── classifier.py           # Hybrid categorization
 │  │   └── analytics.py            # KPIs, trends, anomalies, budgets
 │  ├── app.py                      # Streamlit web dashboard
-│  ├── qt_app.py                   # PySide6 desktop GUI
+│  ├── qt_app.py                   # PySide6 desktop GUI (not supported)
 │
 └── requirements.txt
 └── README.md
@@ -126,7 +126,6 @@ Edit `config/category_rules.json`:
 ```
 
 Or use the **Manual Category Override** feature in either UI — new keywords are persisted automatically.
-
 
 # Web-Page
 

@@ -114,7 +114,7 @@ def tab_visual_analytics(df: pd.DataFrame) -> None:
         top5 = expenses.nlargest(5, "amount")[
             ["date", "description", "category", "amount"]
         ].copy()
-        top5["date"] = top5["date"].dt.strftime("%Y-%m-%d")
+        top5["date"] = top5["date"].dt.strftime("%Y-%m-%d, %H:%M")
         st.dataframe(top5, use_container_width=True, hide_index=True)
     else:
         st.info("No expenses found.")
@@ -160,7 +160,7 @@ def tab_transaction_explorer(df: pd.DataFrame) -> None:
 
     export_df = filtered.copy()
     if "date" in export_df.columns:
-        export_df["date"] = export_df["date"].dt.strftime("%Y-%m-%d")
+        export_df["date"] = export_df["date"].dt.strftime("%Y-%m-%d, %H:%M")
 
     st.dataframe(
         export_df[selected_cols],
@@ -253,7 +253,7 @@ def tab_budget_anomalies(df: pd.DataFrame) -> None:
         display = anomalies[
             ["date", "description", "category", "amount", "z_score"]
         ].copy()
-        display["date"] = display["date"].dt.strftime("%Y-%m-%d")
+        display["date"] = display["date"].dt.strftime("%Y-%m-%d, %H:%M")
         st.dataframe(display, use_container_width=True, hide_index=True)
 
 
@@ -272,8 +272,8 @@ def main() -> None:
     with st.sidebar:
         st.header("Configuration")
         uploaded = st.file_uploader(
-            "Upload Bank Statement (CSV / Excel)",
-            type=["csv", "xlsx", "xls"],
+            "Upload Bank Statement (CSV / Excel / PDF)",
+            type=["csv", "xlsx", "xls", "pdf"],
         )
         loader: BankStatementLoader = st.session_state.loader
         banks = ["auto_detect"] + loader.list_banks()
@@ -317,12 +317,12 @@ def main() -> None:
             df = None
 
     if df is None or df.empty:
-        st.info("Upload a statement file (CSV, XLSX, XLS) using the sidebar to get started.")
+        st.info("Upload a statement file (CSV, XLSX, XLS, PDF) using the sidebar to get started.")
         st.markdown(
             """
             **Supported features:**
             - Multi-bank parsing (Ameriabank, ACBA, Inecobank, Evocabank, auto-detect)
-            - Supports CSV, XLSX, and XLS formats
+            - Supports CSV, XLSX, XLS, and PDF formats
             - Hybrid rule + ML categorization
             - Interactive charts, budget tracking, and export functionality
             """
