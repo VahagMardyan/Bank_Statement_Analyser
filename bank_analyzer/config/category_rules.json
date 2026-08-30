@@ -1,466 +1,1437 @@
 {
-  "Transport": [
-    "yandex",
-    "yandex go",
-    "gg taxi",
-    "gg",
-    "taxi",
-    "sim taxi",
-    "novacar",
-    "gtaxi",
-    "uber",
-    "bolt",
-    "տաքսի",
-    "յանդեքս",
-    "transport",
-    "տրանսպորտ",
-    "metro",
-    "մետրո",
-    "avtobus",
-    "ավտոբուս",
-    "yerevan transport",
-    "parking",
-    "կայանատեղի",
-    "toll"
-  ],
-  "Fuel": [
-    "fuel",
-    "gas station",
-    "petrol",
-    "flash",
-    "bricom",
-    "rosneft",
-    "green fuel",
-    "avtomotors",
-    "beniq",
-    "avtogas",
-    "psa",
-    "առվանագործ",
-    "բենզին",
-    "գազալցակայան"
-  ],
-  "Salary": [
-    "salary",
-    "salary transfer",
-    "wage",
-    "payroll",
-    "աշխատավարձ",
-    "վարձատրություն",
-    "նախապես վճարվող աշխատավարձ"
-  ],
-  "Income": [
-    "interest",
-    "cashback",
-    "refund",
-    "bonus",
-    "dividend",
-    "reward",
-    "տոկոսագումար",
-    "վերադարձ",
-    "cash back",
-    "% կապիտ",
-    "cash back"
-  ],
-  "Cafes and Restaurants": [
-    "restaurant",
-    "tavern",
-    "dargett",
-    "դարգեթ",
-    "cafe",
-    "coffee",
-    "coffeeshop company",
-    "pub",
-    "փաբ",
-    "ռեստորան",
-    "պանդոկ",
-    "սրճարան",
-    "սթարբաքս",
-    "սուրճ",
-    "pizza",
-    "pizza hut",
-    "domino",
-    "papa john",
-    "tashir pizza",
-    "mcdonald",
-    "kfc",
-    "burger king",
-    "grand candy",
-    "sherep",
-    "tasty house",
-    "bon appetite",
-    "bon appétit",
-    "lunch",
-    "լանչ",
-    "art lunch",
-    "wolt",
-    "glovo",
-    "menu am",
-    "yandex eats",
-    "bakery",
-    "confectionery",
-    "cofix",
-    "starbucks",
-    "yeremyan shaurma",
-    "shaurma",
-    "food",
-    "food court"
-  ],
-  "Supermarket": [
-    "supermarket",
-    "sas",
-    "sas market",
-    "yerevan city",
-    "yerevan city",
-    "zovq",
-    "nor zovq",
-    "carrefour",
-    "star supermarket",
-    "fresh market",
-    "yerevan mall",
-    "big fashion",
-    "spar",
-    "supermarket chain",
-    "levon kirakosyan",
-    "սուպերմարկետ",
-    "սիթի",
-    "զովք",
-    "նոր զովք",
-    "grocery"
-  ],
-  "Shopping": [
-    "bookstore",
-    "zangak",
-    "clothing",
-    "apparel",
-    "գրախանութ",
-    "զանգակ",
-    "խանութ",
-    "urartu",
-    "ուրարտու",
-    "գնում",
-    "buy",
-    "sportmaster",
-    "intersport",
-    "zara",
-    "h m",
-    "lc waikiki",
-    "mango",
-    "mall",
-    "shopping center",
-    "electronics",
-    "vlv electronics",
-    "vega",
-    "vesta",
-    "dns",
-    "zigzag",
-    "mobile center",
-    "samsung store",
-    "apple store",
-    "furniture",
-    "home center",
-    "kesaria",
-    "yerevan ru electronics"
-  ],
-  "E-commerce": [
-    "aliexpress",
-    "amazon",
-    "ebay",
-    "wildberries",
-    "ozon",
-    "etsy",
-    "shein",
-    "online store",
-    "online shop",
-    "e commerce",
-    "paypal"
-  ],
-  "Subscriptions": [
-    "netflix",
-    "spotify",
-    "youtube premium",
-    "telegram premium",
-    "apple com bill",
-    "icloud",
-    "google play",
-    "google",
-    "microsoft",
-    "office 365",
-    "chatgpt",
-    "openai",
-    "anthropic",
-    "claude ai",
-    "playstation network",
-    "xbox",
-    "steam",
-    "subscription",
-    "բաժանորդագրություն"
-  ],
-  "Utilities": [
-    "utility",
-    "electricity",
-    "electric networks of armenia",
-    "ena",
-    "gaz",
-    "gazprom",
-    "veolia",
-    "veolia djur",
-    "կոմունալ",
-    "հէց",
-    "գազպրոմ",
-    "վեոլիա",
-    "ջուր",
-    "վիվա",
-    "մտս",
-    "ucom",
-    "viva",
-    "viva mts",
-    "team",
-    "team telecom",
-    "beeline",
-    "rostelecom",
-    "տելեկոմ",
-    "internet provider",
-    "cable tv",
-    "waste management",
-    "աղբահանություն"
-  ],
-  "Healthcare": [
-    "pharmacy",
-    "natali pharm",
-    "gpharm",
-    "pharmasensor",
-    "doctor",
-    "clinic",
-    "hospital",
-    "medical",
-    "med center",
-    "dental",
-    "dentist",
-    "laboratory",
-    "diagnostics",
-    "դեղատուն",
-    "կլինիկա",
-    "հիվանդանոց",
-    "ատամնաբուժարան"
-  ],
-  "Insurance": [
-    "insurance",
-    "ingo armenia",
-    "reso",
-    "rosgosstrakh",
-    "nairi insurance",
-    "sil insurance",
-    "ապահովագրություն",
-    "obligatory insurance",
-    "car insurance",
-    "osago"
-  ],
-  "Entertainment": [
-    "cinema",
-    "cinema star",
-    "kinopark",
-    "moscow cinema",
-    "rossia cinema",
-    "concert",
-    "theatre",
-    "theater",
-    "billiard",
-    "bowling",
-    "karaoke",
-    "nightclub",
-    "amusement park",
-    "zoo",
-    "waterworld",
-    "ferris wheel",
-    "tickets am",
-    "kinoafisha"
-  ],
-  "Education": [
-    "autoschool",
-    "academy",
-    "college",
-    "school",
-    "university",
-    "ysu",
-    "aua",
-    "tuition",
-    "tutoring",
-    "course",
-    "training center",
-    "դասընթաց",
-    "մասնակցելու համար",
-    "scholarship",
-    "կրթաթոշակ",
-    "student fee",
-    "քոլեջ",
-    "կրթահամալիր",
-    "ակադեմիա",
-    "դպրոց",
-    "ուսման"
-  ],
-  "Travel": [
-    "flyone",
-    "wizz air",
-    "ryanair",
-    "aeroflot",
-    "airline",
-    "airport",
-    "zvartnots",
-    "booking com",
-    "airbnb",
-    "hotel",
-    "hostel",
-    "resort",
-    "tour operator",
-    "travel agency",
-    "visa fee",
-    "ուղեւորափոխադրում"
-  ],
-  "Beauty and Personal Care": [
-    "salon",
-    "barbershop",
-    "hairdresser",
-    "spa",
-    "beauty",
-    "manicure",
-    "cosmetics",
-    "sephora",
-    "l occitane",
-    "parfum",
-    "վարսավիրանոց"
-  ],
-  "Pets": [
-    "pet shop",
-    "vet",
-    "veterinary",
-    "pet food",
-    "animal clinic",
-    "կենդանիների խանութ"
-  ],
-  "Government and Fees": [
-    "state tax committee",
-    "police fine",
-    "traffic fine",
-    "passport",
-    "notary",
-    "state fee",
-    "government fee",
-    "cadastre",
-    "tax",
-    "հարկ",
-    "տուգանք",
-    "notarial",
-    "state duty",
-    "state committee"
-  ],
-  "Loans and Credit": [
-    "loan payment",
-    "credit installment",
-    "mortgage",
-    "loan repayment",
-    "credit line",
-    "overdraft",
-    "վարկ",
-    "վարկի մարում",
-    "ապառիկ"
-  ],
-  "Rent": [
-    "rent",
-    "apartment rent",
-    "landlord",
-    "վարձակալություն",
-    "բնակարանի վարձ"
-  ],
-  "Charity and Donations": [
-    "donation",
-    "charity",
-    "church",
-    "fund",
-    "նվիրատվություն",
-    "բարեգործություն"
-  ],
-  "Fee": [
-    "commission",
-    "service fee",
-    "card issuance",
-    "sms notification",
-    "maintenance fee",
-    "annual fee",
-    "handling fee",
-    "միջնորդավճար",
-    "սպասարկման վճար"
-  ],
-  "ATM": [
-    "atm",
-    "cash withdrawal",
-    "cash deposit",
-    "բանկոմատ",
-    "կանխիկացում",
-    "կանխիկ մուտք",
-    "անձնական փոխանցում"
-  ],
-  "Transfer": [
-    "անձնական փոխանցում",
-    "transfer",
-    "wire transfer",
-    "փոխանցում",
-    "համալրում",
-    "telcell",
-    "telcell transport",
-    "idram",
-    "easypay",
-    "mobidram",
-    "թել սել",
-    "pension",
-    "social payment",
-    "card to card",
-    "p2p transfer",
-    "գանձում փոխանցման"
-  ],
-  "Fitness and Sport": [
-    "gym",
-    "wellness",
-    "tennis",
-    "football",
-    "court",
-    "pilates",
-    "swim",
-    "պիլատես",
-    "գիմ",
-    "թենիս",
-    "ֆուտբոլ",
-    "կորտ",
-    "լող",
-    "լողավազան",
-    "fitness",
-    "ֆիթնես",
-    "yoga",
-    "յոգա",
-    "crossfit",
-    "կրոսֆիտ",
-    "boxing",
-    "բոքս",
-    "dance",
-    "պար",
-    "padel",
-    "պադել",
-    "multi wellness",
-    "gold's gym",
-    "golds gym",
-    "world class",
-    "reebok",
-    "grand sport",
-    "գրանդ սպորտ",
-    "orange fitness",
-    "cross sports",
-    "nike",
-    "adidas",
-    "puma",
-    "under armour",
-    "decathlon",
-    "sportmaster",
-    "intersport",
-    "ski",
-    "դահուկ"
-  ]
+  "Transport": {
+    "keywords": [
+      "transport",
+      "տրանսպորտ",
+      "taxi",
+      "տաքսի",
+      "такси",
+      "metro",
+      "մետրո",
+      "автобус",
+      "avtobus",
+      "ավտոբուս",
+      "parking",
+      "կայանատեղի",
+      "toll"
+    ],
+    "merchants": [
+      {
+        "name": "Yandex Go",
+        "aliases": [
+          "yandex",
+          "yandex go",
+          "yandexgo",
+          "яндекс",
+          "яндекс го",
+          "յանդեքս"
+        ]
+      },
+      {
+        "name": "GG Taxi",
+        "aliases": [
+          "gg",
+          "gg taxi",
+          "gtaxi"
+        ]
+      },
+      {
+        "name": "SIM Taxi",
+        "aliases": [
+          "sim taxi"
+        ]
+      },
+      {
+        "name": "NovaCar",
+        "aliases": [
+          "novacar"
+        ]
+      },
+      {
+        "name": "Uber",
+        "aliases": [
+          "uber"
+        ]
+      },
+      {
+        "name": "Yerevan Transport",
+        "aliases": [
+          "yerevan transport"
+        ]
+      }
+    ]
+  },
+
+  "Fuel": {
+    "keywords": [
+      "fuel",
+      "gas station",
+      "petrol",
+      "բենզին",
+      "գազալցակայան",
+      "автозаправка",
+      "бензин",
+      "топливо"
+    ],
+    "merchants": [
+      {
+        "name": "FLASH",
+        "aliases": [
+          "flash"
+        ]
+      },
+      {
+        "name": "Bricom",
+        "aliases": [
+          "bricom"
+        ]
+      },
+      {
+        "name": "Rosneft",
+        "aliases": [
+          "rosneft"
+        ]
+      },
+      {
+        "name": "Green Fuel",
+        "aliases": [
+          "green fuel"
+        ]
+      },
+      {
+        "name": "Avtomotors",
+        "aliases": [
+          "avtomotors"
+        ]
+      },
+      {
+        "name": "Beniq",
+        "aliases": [
+          "beniq"
+        ]
+      },
+      {
+        "name": "Avtogas",
+        "aliases": [
+          "avtogas"
+        ]
+      },
+      {
+        "name": "PSA",
+        "aliases": [
+          "psa"
+        ]
+      },
+      {
+        "name": "Առվանագործ",
+        "aliases": [
+          "առվանագործ"
+        ]
+      }
+    ]
+  },
+
+  "Salary": {
+    "keywords": [
+      "salary",
+      "salary transfer",
+      "wage",
+      "payroll",
+      "աշխատավարձ",
+      "վարձատրություն",
+      "նախապես վճարվող աշխատավարձ",
+      "зарплата",
+      "заработная плата"
+    ],
+    "merchants": []
+  },
+
+  "Income": {
+    "keywords": [
+      "interest",
+      "cashback",
+      "cash back",
+      "refund",
+      "bonus",
+      "dividend",
+      "reward",
+      "տոկոսագումար",
+      "վերադարձ",
+      "cash back",
+      "cashback",
+      "% կապիտ",
+      "процент",
+      "кэшбэк",
+      "возврат",
+      "дивиденд"
+    ],
+    "merchants": []
+  },
+
+  "Cafes and Restaurants": {
+    "keywords": [
+      "restaurant",
+      "tavern",
+      "cafe",
+      "coffee",
+      "coffeeshop",
+      "pub",
+      "փաբ",
+      "ռեստորան",
+      "պանդոկ",
+      "սրճարան",
+      "սուրճ",
+      "pizza",
+      "lunch",
+      "լանչ",
+      "bakery",
+      "confectionery",
+      "shaurma",
+      "food",
+      "food court",
+      "հացաբուլկեղեն",
+      "սնունդ",
+      "кафе",
+      "ресторан",
+      "кофе",
+      "пицца"
+    ],
+    "merchants": [
+      {
+        "name": "Dargett",
+        "aliases": [
+          "dargett",
+          "դարգեթ"
+        ]
+      },
+      {
+        "name": "Coffeeshop Company",
+        "aliases": [
+          "coffeeshop company"
+        ]
+      },
+      {
+        "name": "Starbucks",
+        "aliases": [
+          "starbucks",
+          "սթարբաքս"
+        ]
+      },
+      {
+        "name": "Pizza Hut",
+        "aliases": [
+          "pizza hut"
+        ]
+      },
+      {
+        "name": "Domino's",
+        "aliases": [
+          "domino",
+          "dominos",
+          "domino's"
+        ]
+      },
+      {
+        "name": "Papa John's",
+        "aliases": [
+          "papa john",
+          "papa johns",
+          "papa john's"
+        ]
+      },
+      {
+        "name": "Tashir Pizza",
+        "aliases": [
+          "tashir pizza"
+        ]
+      },
+      {
+        "name": "McDonald's",
+        "aliases": [
+          "mcdonald",
+          "mcdonalds",
+          "mcdonald's"
+        ]
+      },
+      {
+        "name": "KFC",
+        "aliases": [
+          "kfc"
+        ]
+      },
+      {
+        "name": "Burger King",
+        "aliases": [
+          "burger king"
+        ]
+      },
+      {
+        "name": "Grand Candy",
+        "aliases": [
+          "grand candy"
+        ]
+      },
+      {
+        "name": "Sherep",
+        "aliases": [
+          "sherep"
+        ]
+      },
+      {
+        "name": "Tasty House",
+        "aliases": [
+          "tasty house"
+        ]
+      },
+      {
+        "name": "Bon Appétit",
+        "aliases": [
+          "bon appetite",
+          "bon appétit"
+        ]
+      },
+      {
+        "name": "Art Lunch",
+        "aliases": [
+          "art lunch"
+        ]
+      },
+      {
+        "name": "Cofix",
+        "aliases": [
+          "cofix"
+        ]
+      },
+      {
+        "name": "Yeremyan Shaurma",
+        "aliases": [
+          "yeremyan shaurma"
+        ]
+      },
+      {
+        "name": "Wolt",
+        "aliases": [
+          "wolt"
+        ]
+      },
+      {
+        "name": "Glovo",
+        "aliases": [
+          "glovo"
+        ]
+      },
+      {
+        "name": "Menu.am",
+        "aliases": [
+          "menu am",
+          "menu.am"
+        ]
+      },
+      {
+        "name": "Yandex Eats",
+        "aliases": [
+          "yandex eats",
+          "яндекс еда"
+        ]
+      }
+    ]
+  },
+
+  "Supermarket": {
+    "keywords": [
+      "supermarket",
+      "grocery",
+      "սուպերմարկետ",
+      "գrocery",
+      "մթերք",
+      "продуктовый",
+      "супермаркет"
+    ],
+    "merchants": [
+      {
+        "name": "SAS",
+        "aliases": [
+          "sas",
+          "sas market"
+        ]
+      },
+      {
+        "name": "Yerevan City",
+        "aliases": [
+          "yerevan city",
+          "երևան սիթի",
+          "yerevan-city"
+        ]
+      },
+      {
+        "name": "Zovq",
+        "aliases": [
+          "zovq",
+          "nor zovq",
+          "զովք",
+          "նոր զովք"
+        ]
+      },
+      {
+        "name": "Carrefour",
+        "aliases": [
+          "carrefour"
+        ]
+      },
+      {
+        "name": "Star Supermarket",
+        "aliases": [
+          "star supermarket"
+        ]
+      },
+      {
+        "name": "Fresh Market",
+        "aliases": [
+          "fresh market"
+        ]
+      },
+      {
+        "name": "Yerevan Mall",
+        "aliases": [
+          "yerevan mall"
+        ]
+      },
+      {
+        "name": "BIG Fashion",
+        "aliases": [
+          "big fashion"
+        ]
+      },
+      {
+        "name": "SPAR",
+        "aliases": [
+          "spar"
+        ]
+      },
+      {
+        "name": "Levon Kirakosyan",
+        "aliases": [
+          "levon kirakosyan"
+        ]
+      }
+    ]
+  },
+
+  "Shopping": {
+    "keywords": [
+      "bookstore",
+      "clothing",
+      "apparel",
+      "գրախանութ",
+      "խանութ",
+      "գնում",
+      "buy",
+      "mall",
+      "shopping center",
+      "electronics",
+      "furniture",
+      "կահույք",
+      "էլեկտրոնիկա",
+      "одежда",
+      "магазин",
+      "покупка",
+      "торговый центр"
+    ],
+    "merchants": [
+      {
+        "name": "Zangak",
+        "aliases": [
+          "zangak",
+          "զանգակ"
+        ]
+      },
+      {
+        "name": "Urartu",
+        "aliases": [
+          "urartu",
+          "ուրարտու"
+        ]
+      },
+      {
+        "name": "Sportmaster",
+        "aliases": [
+          "sportmaster"
+        ]
+      },
+      {
+        "name": "Intersport",
+        "aliases": [
+          "intersport"
+        ]
+      },
+      {
+        "name": "Zara",
+        "aliases": [
+          "zara"
+        ]
+      },
+      {
+        "name": "H&M",
+        "aliases": [
+          "h m",
+          "h&m",
+          "hm"
+        ]
+      },
+      {
+        "name": "LC Waikiki",
+        "aliases": [
+          "lc waikiki"
+        ]
+      },
+      {
+        "name": "Mango",
+        "aliases": [
+          "mango"
+        ]
+      },
+      {
+        "name": "VLV Electronics",
+        "aliases": [
+          "vlv electronics"
+        ]
+      },
+      {
+        "name": "VEGA",
+        "aliases": [
+          "vega"
+        ]
+      },
+      {
+        "name": "Vesta",
+        "aliases": [
+          "vesta"
+        ]
+      },
+      {
+        "name": "DNS",
+        "aliases": [
+          "dns"
+        ]
+      },
+      {
+        "name": "Zigzag",
+        "aliases": [
+          "zigzag"
+        ]
+      },
+      {
+        "name": "Mobile Center",
+        "aliases": [
+          "mobile center"
+        ]
+      },
+      {
+        "name": "Samsung Store",
+        "aliases": [
+          "samsung store"
+        ]
+      },
+      {
+        "name": "Apple Store",
+        "aliases": [
+          "apple store"
+        ]
+      },
+      {
+        "name": "Home Center",
+        "aliases": [
+          "home center"
+        ]
+      },
+      {
+        "name": "Kesaria",
+        "aliases": [
+          "kesaria"
+        ]
+      },
+      {
+        "name": "Yerevan.ru Electronics",
+        "aliases": [
+          "yerevan ru electronics",
+          "yerevan.ru electronics"
+        ]
+      }
+    ]
+  },
+
+  "E-commerce": {
+    "keywords": [
+      "online store",
+      "online shop",
+      "e commerce",
+      "e-commerce",
+      "online purchase",
+      "օնլայն խանութ",
+      "օնլայն գնում"
+    ],
+    "merchants": [
+      {
+        "name": "AliExpress",
+        "aliases": [
+          "aliexpress"
+        ]
+      },
+      {
+        "name": "Amazon",
+        "aliases": [
+          "amazon"
+        ]
+      },
+      {
+        "name": "eBay",
+        "aliases": [
+          "ebay"
+        ]
+      },
+      {
+        "name": "Wildberries",
+        "aliases": [
+          "wildberries"
+        ]
+      },
+      {
+        "name": "Ozon",
+        "aliases": [
+          "ozon"
+        ]
+      },
+      {
+        "name": "Etsy",
+        "aliases": [
+          "etsy"
+        ]
+      },
+      {
+        "name": "Shein",
+        "aliases": [
+          "shein"
+        ]
+      },
+      {
+        "name": "PayPal",
+        "aliases": [
+          "paypal"
+        ]
+      }
+    ]
+  },
+
+  "Subscriptions": {
+    "keywords": [
+      "subscription",
+      "բաժանորդագրություն",
+      "подписка"
+    ],
+    "merchants": [
+      {
+        "name": "Netflix",
+        "aliases": [
+          "netflix"
+        ]
+      },
+      {
+        "name": "Spotify",
+        "aliases": [
+          "spotify"
+        ]
+      },
+      {
+        "name": "YouTube Premium",
+        "aliases": [
+          "youtube premium"
+        ]
+      },
+      {
+        "name": "Telegram Premium",
+        "aliases": [
+          "telegram premium"
+        ]
+      },
+      {
+        "name": "Apple",
+        "aliases": [
+          "apple com bill",
+          "apple.com bill"
+        ]
+      },
+      {
+        "name": "iCloud",
+        "aliases": [
+          "icloud"
+        ]
+      },
+      {
+        "name": "Google Play",
+        "aliases": [
+          "google play"
+        ]
+      },
+      {
+        "name": "Google",
+        "aliases": [
+          "google"
+        ]
+      },
+      {
+        "name": "Microsoft",
+        "aliases": [
+          "microsoft"
+        ]
+      },
+      {
+        "name": "Microsoft 365",
+        "aliases": [
+          "office 365",
+          "microsoft 365"
+        ]
+      },
+      {
+        "name": "ChatGPT",
+        "aliases": [
+          "chatgpt"
+        ]
+      },
+      {
+        "name": "OpenAI",
+        "aliases": [
+          "openai"
+        ]
+      },
+      {
+        "name": "Anthropic",
+        "aliases": [
+          "anthropic"
+        ]
+      },
+      {
+        "name": "Claude AI",
+        "aliases": [
+          "claude ai",
+          "claude"
+        ]
+      },
+      {
+        "name": "PlayStation Network",
+        "aliases": [
+          "playstation network",
+          "psn"
+        ]
+      },
+      {
+        "name": "Xbox",
+        "aliases": [
+          "xbox"
+        ]
+      },
+      {
+        "name": "Steam",
+        "aliases": [
+          "steam"
+        ]
+      }
+    ]
+  },
+
+  "Utilities": {
+    "keywords": [
+      "utility",
+      "electricity",
+      "կոմունալ",
+      "ջուր",
+      "գազ",
+      "հէց",
+      "internet provider",
+      "cable tv",
+      "waste management",
+      "աղբահանություն",
+      "коммунальные",
+      "электричество",
+      "вода",
+      "газ",
+      "интернет"
+    ],
+    "merchants": [
+      {
+        "name": "ENA",
+        "aliases": [
+          "electric networks of armenia",
+          "ena"
+        ]
+      },
+      {
+        "name": "Gazprom Armenia",
+        "aliases": [
+          "gaz",
+          "gazprom",
+          "գազպրոմ",
+          "gazprom armenia"
+        ]
+      },
+      {
+        "name": "Veolia",
+        "aliases": [
+          "veolia",
+          "veolia djur",
+          "վեոլիա"
+        ]
+      },
+      {
+        "name": "Viva",
+        "aliases": [
+          "viva",
+          "viva mts",
+          "mts",
+          "վիվա",
+          "մտս"
+        ]
+      },
+      {
+        "name": "Ucom",
+        "aliases": [
+          "ucom"
+        ]
+      },
+      {
+        "name": "Team Telecom Armenia",
+        "aliases": [
+          "team",
+          "team telecom",
+          "team telecom armenia"
+        ]
+      },
+      {
+        "name": "Beeline",
+        "aliases": [
+          "beeline"
+        ]
+      },
+      {
+        "name": "Rostelecom",
+        "aliases": [
+          "rostelecom"
+        ]
+      }
+    ]
+  },
+
+  "Healthcare": {
+    "keywords": [
+      "pharmacy",
+      "doctor",
+      "clinic",
+      "hospital",
+      "medical",
+      "med center",
+      "dental",
+      "dentist",
+      "laboratory",
+      "diagnostics",
+      "դեղատուն",
+      "կլինիկա",
+      "հիվանդանոց",
+      "ատամնաբուժարան",
+      "բժիշկ",
+      "լաբորատորիա",
+      "аптека",
+      "врач",
+      "клиника",
+      "больница"
+    ],
+    "merchants": [
+      {
+        "name": "Natali Pharm",
+        "aliases": [
+          "natali pharm"
+        ]
+      },
+      {
+        "name": "GPharm",
+        "aliases": [
+          "gpharm"
+        ]
+      },
+      {
+        "name": "Pharmasensor",
+        "aliases": [
+          "pharmasensor"
+        ]
+      }
+    ]
+  },
+
+  "Insurance": {
+    "keywords": [
+      "insurance",
+      "ապահովագրություն",
+      "obligatory insurance",
+      "car insurance",
+      "osago",
+      "страхование",
+      "осаго"
+    ],
+    "merchants": [
+      {
+        "name": "INGO Armenia",
+        "aliases": [
+          "ingo armenia"
+        ]
+      },
+      {
+        "name": "RESO",
+        "aliases": [
+          "reso"
+        ]
+      },
+      {
+        "name": "Rosgosstrakh",
+        "aliases": [
+          "rosgosstrakh"
+        ]
+      },
+      {
+        "name": "Nairi Insurance",
+        "aliases": [
+          "nairi insurance"
+        ]
+      },
+      {
+        "name": "SIL Insurance",
+        "aliases": [
+          "sil insurance"
+        ]
+      }
+    ]
+  },
+
+  "Entertainment": {
+    "keywords": [
+      "cinema",
+      "concert",
+      "theatre",
+      "theater",
+      "billiard",
+      "bowling",
+      "karaoke",
+      "nightclub",
+      "amusement park",
+      "zoo",
+      "waterworld",
+      "ferris wheel",
+      "tickets",
+      "կինո",
+      "թատրոն",
+      "համերգ",
+      "կենդանաբանական այգի",
+      "развлечения",
+      "кино",
+      "театр",
+      "концерт"
+    ],
+    "merchants": [
+      {
+        "name": "Cinema Star",
+        "aliases": [
+          "cinema star"
+        ]
+      },
+      {
+        "name": "Kinopark",
+        "aliases": [
+          "kinopark"
+        ]
+      },
+      {
+        "name": "Moscow Cinema",
+        "aliases": [
+          "moscow cinema"
+        ]
+      },
+      {
+        "name": "Rossia Cinema",
+        "aliases": [
+          "rossia cinema"
+        ]
+      },
+      {
+        "name": "Kinoafisha",
+        "aliases": [
+          "kinoafisha"
+        ]
+      },
+      {
+        "name": "Tickets.am",
+        "aliases": [
+          "tickets am",
+          "tickets.am"
+        ]
+      },
+      {
+        "name": "Waterworld",
+        "aliases": [
+          "waterworld"
+        ]
+      }
+    ]
+  },
+
+  "Education": {
+    "keywords": [
+      "autoschool",
+      "academy",
+      "college",
+      "school",
+      "university",
+      "tuition",
+      "tutoring",
+      "course",
+      "training center",
+      "դասընթաց",
+      "մասնակցելու համար",
+      "scholarship",
+      "կրթաթոշակ",
+      "student fee",
+      "քոլեջ",
+      "կրթահամալիր",
+      "ակադեմիա",
+      "դպրոց",
+      "ուսման",
+      "կրթություն",
+      "курсы",
+      "обучение",
+      "школа",
+      "университет"
+    ],
+    "merchants": [
+      {
+        "name": "YSU",
+        "aliases": [
+          "ysu",
+          "yerevan state university",
+          "երևանի պետական համալսարան"
+        ]
+      },
+      {
+        "name": "AUA",
+        "aliases": [
+          "aua",
+          "american university of armenia"
+        ]
+      }
+    ]
+  },
+
+  "Travel": {
+    "keywords": [
+      "airline",
+      "airport",
+      "hotel",
+      "hostel",
+      "resort",
+      "tour operator",
+      "travel agency",
+      "visa fee",
+      "ուղեւորափոխադրում",
+      "ավիաընկերություն",
+      "օդանավակայան",
+      "հյուրանոց",
+      "путешествие",
+      "авиакомпания",
+      "аэропорт",
+      "отель"
+    ],
+    "merchants": [
+      {
+        "name": "FlyOne",
+        "aliases": [
+          "flyone",
+          "fly one"
+        ]
+      },
+      {
+        "name": "Wizz Air",
+        "aliases": [
+          "wizz air"
+        ]
+      },
+      {
+        "name": "Ryanair",
+        "aliases": [
+          "ryanair"
+        ]
+      },
+      {
+        "name": "Aeroflot",
+        "aliases": [
+          "aeroflot",
+          "аэрофлот"
+        ]
+      },
+      {
+        "name": "Zvartnots",
+        "aliases": [
+          "zvartnots",
+          "zvartnots airport"
+        ]
+      },
+      {
+        "name": "Booking.com",
+        "aliases": [
+          "booking com",
+          "booking.com"
+        ]
+      },
+      {
+        "name": "Airbnb",
+        "aliases": [
+          "airbnb"
+        ]
+      }
+    ]
+  },
+
+  "Beauty and Personal Care": {
+    "keywords": [
+      "salon",
+      "barbershop",
+      "hairdresser",
+      "spa",
+      "beauty",
+      "manicure",
+      "cosmetics",
+      "parfum",
+      "վարսավիրանոց",
+      "գեղեցկության սրահ",
+      "մատնահարդարում",
+      "կոսմետիկա",
+      "косметика",
+      "салон",
+      "парикмахерская",
+      "спа"
+    ],
+    "merchants": [
+      {
+        "name": "Sephora",
+        "aliases": [
+          "sephora"
+        ]
+      },
+      {
+        "name": "L'Occitane",
+        "aliases": [
+          "l occitane",
+          "l'occitane"
+        ]
+      }
+    ]
+  },
+
+  "Pets": {
+    "keywords": [
+      "pet shop",
+      "vet",
+      "veterinary",
+      "pet food",
+      "animal clinic",
+      "կենդանիների խանութ",
+      "անասնաբուժարան",
+      "зоомагазин",
+      "ветеринария"
+    ],
+    "merchants": []
+  },
+
+  "Government and Fees": {
+    "keywords": [
+      "state tax committee",
+      "police fine",
+      "traffic fine",
+      "passport",
+      "notary",
+      "state fee",
+      "government fee",
+      "cadastre",
+      "tax",
+      "հարկ",
+      "տուգանք",
+      "notarial",
+      "state duty",
+      "state committee",
+      "պետտուրք",
+      "մաքս",
+      "штраф",
+      "налог",
+      "госпошлина"
+    ],
+    "merchants": []
+  },
+
+  "Loans and Credit": {
+    "keywords": [
+      "loan payment",
+      "credit installment",
+      "mortgage",
+      "loan repayment",
+      "credit line",
+      "overdraft",
+      "վարկ",
+      "վարկի մարում",
+      "ապառիկ",
+      "հիփոթեք",
+      "վարկի վճարում",
+      "кредит",
+      "погашение кредита",
+      "ипотека",
+      "рассрочка"
+    ],
+    "merchants": []
+  },
+
+  "Rent": {
+    "keywords": [
+      "rent",
+      "apartment rent",
+      "landlord",
+      "վարձակալություն",
+      "բնակարանի վարձ",
+      "վարձ",
+      "аренда",
+      "квартира",
+      "арендная плата"
+    ],
+    "merchants": []
+  },
+
+  "Charity and Donations": {
+    "keywords": [
+      "donation",
+      "charity",
+      "church",
+      "fund",
+      "նվիրատվություն",
+      "բարեգործություն",
+      "եկեղեցի",
+      "հիմնադրամ",
+      "пожертвование",
+      "благотворительность",
+      "фонд"
+    ],
+    "merchants": []
+  },
+
+  "Fee": {
+    "keywords": [
+      "commission",
+      "service fee",
+      "card issuance",
+      "sms notification",
+      "maintenance fee",
+      "annual fee",
+      "handling fee",
+      "միջնորդավճար",
+      "սպասարկման վճար",
+      "քարտի թողարկում",
+      "տարեկան վճար",
+      "հաշվարկային վճար",
+      "комиссия",
+      "комиссионное вознаграждение",
+      "плата за обслуживание"
+    ],
+    "merchants": []
+  },
+
+  "ATM": {
+    "keywords": [
+      "atm",
+      "cash withdrawal",
+      "cash deposit",
+      "բանկոմատ",
+      "կանխիկացում",
+      "կանխիկ մուտք",
+      "անձնական փոխանցում",
+      "снятие наличных",
+      "внесение наличных",
+      "банкомат"
+    ],
+    "merchants": []
+  },
+
+  "Transfer": {
+    "keywords": [
+      "անձնական փոխանցում",
+      "transfer",
+      "wire transfer",
+      "փոխանցում",
+      "համալրում",
+      "pension",
+      "social payment",
+      "card to card",
+      "p2p transfer",
+      "գանձում փոխանցման",
+      "перевод",
+      "пополнение",
+      "пенсия",
+      "социальная выплата",
+      "перевод с карты на карту"
+    ],
+    "merchants": [
+      {
+        "name": "Telcell",
+        "aliases": [
+          "telcell",
+          "telcell transport",
+          "թել սել"
+        ]
+      },
+      {
+        "name": "IDram",
+        "aliases": [
+          "idram"
+        ]
+      },
+      {
+        "name": "EasyPay",
+        "aliases": [
+          "easypay"
+        ]
+      },
+      {
+        "name": "MobiDram",
+        "aliases": [
+          "mobidram"
+        ]
+      }
+    ]
+  },
+
+  "Fitness and Sport": {
+    "keywords": [
+      "gym",
+      "wellness",
+      "tennis",
+      "football",
+      "court",
+      "pilates",
+      "swim",
+      "fitness",
+      "yoga",
+      "crossfit",
+      "boxing",
+      "dance",
+      "padel",
+      "ski",
+      "պիլատես",
+      "գիմ",
+      "թենիս",
+      "ֆուտբոլ",
+      "կորտ",
+      "լող",
+      "լողավազան",
+      "ֆիթնես",
+      "յոգա",
+      "կրոսֆիտ",
+      "բոքս",
+      "պար",
+      "պադել",
+      "դահուկ",
+      "спортзал",
+      "фитнес",
+      "йога",
+      "бокс",
+      "танцы"
+    ],
+    "merchants": [
+      {
+        "name": "Multi Wellness",
+        "aliases": [
+          "multi wellness"
+        ]
+      },
+      {
+        "name": "Gold's Gym",
+        "aliases": [
+          "gold's gym",
+          "golds gym"
+        ]
+      },
+      {
+        "name": "World Class",
+        "aliases": [
+          "world class"
+        ]
+      },
+      {
+        "name": "Reebok",
+        "aliases": [
+          "reebok"
+        ]
+      },
+      {
+        "name": "Grand Sport",
+        "aliases": [
+          "grand sport",
+          "գրանդ սպորտ"
+        ]
+      },
+      {
+        "name": "Orange Fitness",
+        "aliases": [
+          "orange fitness"
+        ]
+      },
+      {
+        "name": "Cross Sports",
+        "aliases": [
+          "cross sports"
+        ]
+      },
+      {
+        "name": "Nike",
+        "aliases": [
+          "nike"
+        ]
+      },
+      {
+        "name": "Adidas",
+        "aliases": [
+          "adidas"
+        ]
+      },
+      {
+        "name": "Puma",
+        "aliases": [
+          "puma"
+        ]
+      },
+      {
+        "name": "Under Armour",
+        "aliases": [
+          "under armour"
+        ]
+      },
+      {
+        "name": "Decathlon",
+        "aliases": [
+          "decathlon"
+        ]
+      },
+      {
+        "name": "Sportmaster",
+        "aliases": [
+          "sportmaster"
+        ]
+      },
+      {
+        "name": "Intersport",
+        "aliases": [
+          "intersport"
+        ]
+      }
+    ]
+  }
 }

@@ -8,6 +8,7 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 import pdfplumber
+import unicodedata
 
 NOISE_TOKENS: frozenset[str] = frozenset(
     {
@@ -113,16 +114,17 @@ class BankStatementLoader:
 
     @staticmethod
     def clean_description(text: str) -> str:
-        """Sanitize raw transaction description text."""
+        """Normalize transaction text without removing merchant information.
+        Ingestion normalizes formatting and removes obvious variable identifiers
+        (dates and long numeric IDs). Category/merchant semantics are handled
+        later by classifier.py."""
         if not isinstance(text, str) or not text.strip():
             return ""
-
-        cleaned = text.lower()
+        cleaned = unicodedata.normalize("NFKC",text).lower()
         cleaned = DATE_PATTERN.sub(" ", cleaned)
         cleaned = LONG_NUMERIC_ID.sub(" ", cleaned)
-        tokens = cleaned.split()
-        filtered = [t for t in tokens if t not in NOISE_TOKENS and len(t) > 1]
-        return WHITESPACE.sub(" ", " ".join(filtered)).strip()
+        cleaned = re.sub(r"[^\w\s%]", " ", cleaned, flags=re.UNICODE)
+        return WHITESPACE.sub(" ", cleaned).strip()
 
     @staticmethod
     def _normalize_column_name(value: Any) -> str:

@@ -10,7 +10,7 @@ test_data = [
     {"Date": "2026-06-12", "Description": "GG Taxi Yerevan", "Amount": -1500},
     {"Date": "2026-06-15", "Description": "VEON Armenia Mobile Pay", "Amount": -4500},
     
-    {"Date": "2026-06-18", "Description": "BUYING NEW MACBOOK PRO UTILITY", "Amount": -950000},
+    {"Date": "2026-06-18", "Description": "BUYING NEW MACBOOK PRO", "Amount": -950000},
     
     {"Date": "2026-06-20", "Description": "Carrefour Mall Supermarket", "Amount": -14200},
     {"Date": "2026-06-22", "Description": "Coffee House Cascade", "Amount": -3200},
