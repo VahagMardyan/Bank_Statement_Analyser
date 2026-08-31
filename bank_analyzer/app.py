@@ -21,13 +21,31 @@ from modules.classifier import TransactionClassifier
 from modules.ingestion import BankStatementLoader
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_BUDGETS = {
-    "Transport": 50000,
-    "Supermarket": 80000,
-    "Cafes and Restaurants": 40000,
-    "Utilities": 30000,
-    "Entertainment": 20000,
+
+# Manually add new category, if you update "category_rules.json"
+DEFAULT_BUDGETS = { 
+    "Supermarket": 100000,
+    "Transport": 30000,
+    "Cafes and Restaurants": 50000,
+    "Utilities": 40000,
     "Shopping": 50000,
+    "Fuel": 40000,
+    "Subscriptions": 15000,
+    "Healthcare": 30000,
+    "Fitness and Sport": 25000,
+    "Entertainment": 25000,
+    "Beauty and Personal Care": 20000,
+    "E-commerce": 30000,
+    "Education": 50000,
+    "Pets": 15000,
+    "Travel": 100000,
+    "Insurance": 20000,
+    "Loans and Credit": 100000,
+    "Rent": 150000,
+    "Charity and Donations": 10000,
+    "Government and Fees": 15000,
+    "Fee": 5000,
+    "Other": 20000,
 }
 
 

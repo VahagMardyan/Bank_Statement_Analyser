@@ -108,25 +108,30 @@ def check_budget_limits(
     Returns DataFrame: category, budget, actual, remaining, pct_used, over_budget.
     """
     summary = get_category_summary(df)
-    rows: list[dict[str, Any]] = []
+    rows : list[dict[str, Any]] = []
 
-    for category, budget in budget_dict.items():
-        actual_row = summary[summary["category"] == category]
-        actual = float(actual_row["total_spend"].iloc[0]) if not actual_row.empty else 0.0
+    actual_categories = set(summary['category'].unique()) if not summary.empty else set()
+    budget_categories = set(budget_dict.keys())
+
+    all_categories = sorted((actual_categories | budget_categories) - {"Income", "Salary"})
+    for category in all_categories:
+        budget = float(budget_dict.get(category, 0.0))
+        
+        actual_row = summary[summary["category"] == category] if not summary.empty else pd.DataFrame()
+        actual = float(actual_row['total_spend'].iloc[0]) if not actual_row.empty else 0.0
+
         remaining = budget - actual
         pct_used = round((actual / budget * 100), 2) if budget > 0 else 0.0
-        rows.append(
-            {
-                "category": category,
-                "budget": budget,
-                "actual": round(actual, 2),
-                "remaining": round(remaining, 2),
-                "pct_used": pct_used,
-                "over_budget": actual > budget,
-            }
-        )
 
-    return pd.DataFrame(rows).sort_values("pct_used", ascending=False).reset_index(drop=True)
+        rows.append({
+            "category" : category,
+            "budget" : budget,
+            "actual" : round(actual, 2),
+            "remaining" : round(remaining, 2),
+            "pct_used" : pct_used,
+            "over_budget" : actual > budget if budget > 0 else False,
+        })
+        return pd.DataFrame(rows).sort_values("pct_used", ascending=False).reset_index(drop=True)
 
 
 def compute_kpis(df: pd.DataFrame) -> dict[str, float | int]:
