@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import date
 from pathlib import Path
-from typing import Optional
 
 import pandas as pd
 from PySide6.QtCharts import (
@@ -47,25 +45,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from modules.analytics import (
-    check_budget_limits,
-    compute_kpis,
-    detect_anomalies,
-    get_category_summary,
-    get_monthly_trends,
-)
-from modules.classifier import TransactionClassifier
-from modules.ingestion import BankStatementLoader
+from modules.constants import DEFAULT_BUDGETS
+from modules.facade import BankAnalyzerFacade
 
 BASE_DIR = Path(__file__).resolve().parent
-DEFAULT_BUDGETS = {
-    "Transport": 50000,
-    "Supermarket": 80000,
-    "Restaurants": 40000,
-    "Utilities": 30000,
-    "Entertainment": 20000,
-    "Shopping": 50000,
-}
 
 
 def format_amd(value: float) -> str:
@@ -75,7 +58,7 @@ def format_amd(value: float) -> str:
 class MetricCard(QGroupBox):
     """Small KPI card widget."""
 
-    def __init__(self, title: str, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(title, parent)
         self.value_label = QLabel("—")
         self.value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -125,7 +108,7 @@ class OverrideDialog(QDialog):
         transaction_id: str,
         description: str,
         categories: list[str],
-        parent: Optional[QWidget] = None,
+        parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("Manual Category Override")
@@ -154,11 +137,10 @@ class BankAnalyzerWindow(QMainWindow):
         self.setWindowTitle("Bank Statement Analyzer")
         self.resize(1280, 820)
 
-        self.loader = BankStatementLoader()
-        self.classifier = TransactionClassifier()
-        self.df: Optional[pd.DataFrame] = None
-        self.filtered_df: Optional[pd.DataFrame] = None
-        self.budgets = dict(DEFAULT_BUDGETS)
+        self.analyzer = BankAnalyzerFacade()
+        self.df: pd.DataFrame | None = None
+        self.filtered_df: pd.DataFrame | None = None
+        self.budgets: dict[str, float] = {k: float(v) for k, v in DEFAULT_BUDGETS.items()}
 
         self._build_menu()
         self._build_ui()
@@ -181,8 +163,8 @@ class BankAnalyzerWindow(QMainWindow):
         controls = QHBoxLayout()
         self.bank_combo = QComboBox()
         self.bank_combo.addItem("Auto Detect", "auto_detect")
-        for bank_key in self.loader.list_banks():
-            display = self.loader._configs[bank_key]["display_name"]
+        for bank_key in self.analyzer.list_banks():
+            display = self.analyzer.bank_labels().get(bank_key, bank_key)
             self.bank_combo.addItem(display, bank_key)
 
         self.start_date = QDateEdit(calendarPopup=True)
@@ -333,8 +315,7 @@ class BankAnalyzerWindow(QMainWindow):
 
         bank_key = self.bank_combo.currentData()
         try:
-            raw = self.loader.load(path, bank_key=bank_key)
-            self.df = self.classifier.classify(raw)
+            self.df = self.analyzer.load_and_classify(path, bank_key=bank_key)
             self._setup_date_filters()
             self.apply_filters()
             self.statusBar().showMessage(f"Loaded {len(self.df)} transactions from {Path(path).name}")
@@ -379,15 +360,15 @@ class BankAnalyzerWindow(QMainWindow):
         return pd.DataFrame()
 
     def refresh_metrics(self) -> None:
-        kpis = compute_kpis(self._active_df())
-        self.income_card.set_value(format_amd(kpis["total_income"]))
-        self.expense_card.set_value(format_amd(kpis["total_expenses"]))
-        self.savings_card.set_value(format_amd(kpis["net_savings"]))
-        self.txn_card.set_value(str(kpis["transaction_count"]))
+        kpis = self.analyzer.compute_kpis(self._active_df())
+        self.income_card.set_value(format_amd(kpis.total_income))
+        self.expense_card.set_value(format_amd(kpis.total_expenses))
+        self.savings_card.set_value(format_amd(kpis.net_savings))
+        self.txn_card.set_value(str(kpis.transaction_count))
 
     def refresh_analytics(self) -> None:
         df = self._active_df()
-        summary = get_category_summary(df)
+        summary = self.analyzer.analytics.category_summary(df)
 
         pie_series = QPieSeries()
         if not summary.empty:
@@ -399,7 +380,7 @@ class BankAnalyzerWindow(QMainWindow):
         pie_chart.legend().setAlignment(Qt.AlignmentFlag.AlignBottom)
         self.pie_chart_view.setChart(pie_chart)
 
-        trends = get_monthly_trends(df)
+        trends = self.analyzer.analytics.monthly_trends(df)
         bar_set = QBarSet("Spend")
         categories: list[str] = []
         if not trends.empty:
@@ -485,7 +466,7 @@ class BankAnalyzerWindow(QMainWindow):
         dialog = OverrideDialog(
             txn_id,
             desc_item.text() if desc_item else "",
-            self.classifier.get_categories(),
+            self.analyzer.get_categories(),
             self,
         )
         if dialog.exec() != QDialog.DialogCode.Accepted:
@@ -495,16 +476,7 @@ class BankAnalyzerWindow(QMainWindow):
         if self.df is None:
             return
 
-        match = self.df[self.df["transaction_id"] == txn_id]
-        if match.empty:
-            return
-
-        cleaned = match.iloc[0]["cleaned_description"]
-        self.classifier.manual_override(txn_id, new_cat, cleaned)
-        mask = self.df["transaction_id"] == txn_id
-        self.df.loc[mask, "category"] = new_cat
-        self.df.loc[mask, "method"] = "manual"
-        self.df.loc[mask, "confidence"] = 1.0
+        self.df = self.analyzer.override_category(self.df, txn_id, new_cat)
         self.apply_filters()
         QMessageBox.information(self, "Override", f"Category updated to '{new_cat}'.")
 
@@ -512,7 +484,9 @@ class BankAnalyzerWindow(QMainWindow):
         for cat, spin in self.budget_spinboxes.items():
             self.budgets[cat] = float(spin.value())
 
-        report = check_budget_limits(self._active_df(), self.budgets)
+        report = self.analyzer.analytics.check_budget_limits(
+            self._active_df(), self.budgets
+        )
         for cat in DEFAULT_BUDGETS:
             bar = self.budget_bars[cat]
             status: QLabel = getattr(self, f"_budget_status_{cat}")
@@ -529,7 +503,9 @@ class BankAnalyzerWindow(QMainWindow):
 
     def refresh_anomalies(self) -> None:
         threshold = self.anomaly_slider.value() / 10.0
-        anomalies = detect_anomalies(self._active_df(), threshold_std=threshold)
+        anomalies = self.analyzer.analytics.detect_anomalies(
+            self._active_df(), threshold_std=threshold
+        )
         if anomalies.empty:
             self.anomaly_table.load_dataframe(pd.DataFrame())
         else:

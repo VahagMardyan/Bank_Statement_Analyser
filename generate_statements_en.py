@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import pandas as pd
 
-test_data = [
+test_data: list[dict[str, str | int]] = [
     # YYYY-MM-DD Format
     {"Date": "2026-06-01", "Description": "Yerevan City Supermarket", "Amount": -12500},
     {"Date": "2026-06-02", "Description": "Yandex Go Taxi Yerevan", "Amount": -1800},

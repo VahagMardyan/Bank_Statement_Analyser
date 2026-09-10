@@ -7,12 +7,16 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .anomaly import AnomalyDetector, ZScoreAnomalyDetector
+from .constants import INCOME_CATEGORIES
+from .models import KPIMetrics, TransactionType
+
 
 def _expense_df(df: pd.DataFrame) -> pd.DataFrame:
     if df.empty:
         return df.copy()
     if "transaction_type" in df.columns:
-        return df[df["transaction_type"] == "expense"].copy()
+        return df[df["transaction_type"] == TransactionType.EXPENSE.value].copy()
     return df.copy()
 
 
@@ -73,29 +77,15 @@ def get_weekly_trends(df: pd.DataFrame) -> pd.DataFrame:
 def detect_anomalies(
     df: pd.DataFrame,
     threshold_std: float = 2.5,
+    detector: AnomalyDetector | None = None,
 ) -> pd.DataFrame:
     """
-    Flag unusually large transactions based on category mean + threshold * std.
+    Flag unusually large transactions using the configured anomaly strategy.
 
     Adds columns: category_mean, category_std, z_score, is_anomaly.
     """
-    expenses = _expense_df(df)
-    if expenses.empty or "category" not in expenses.columns:
-        return pd.DataFrame()
-
-    work = expenses.copy()
-    stats = work.groupby("category")["amount"].agg(["mean", "std"]).rename(
-        columns={"mean": "category_mean", "std": "category_std"}
-    )
-    work = work.merge(stats, left_on="category", right_index=True, how="left")
-    work["category_std"] = work["category_std"].fillna(0)
-    work["z_score"] = np.where(
-        work["category_std"] > 0,
-        (work["amount"] - work["category_mean"]) / work["category_std"],
-        0.0,
-    )
-    work["is_anomaly"] = work["z_score"] >= threshold_std
-    return work[work["is_anomaly"]].sort_values("z_score", ascending=False).reset_index(drop=True)
+    strategy = detector or ZScoreAnomalyDetector(threshold_std=threshold_std)
+    return strategy.detect(_expense_df(df))
 
 
 def check_budget_limits(
@@ -108,47 +98,80 @@ def check_budget_limits(
     Returns DataFrame: category, budget, actual, remaining, pct_used, over_budget.
     """
     summary = get_category_summary(df)
-    rows : list[dict[str, Any]] = []
+    rows: list[dict[str, Any]] = []
 
-    actual_categories = set(summary['category'].unique()) if not summary.empty else set()
+    actual_categories = set(summary["category"].unique()) if not summary.empty else set()
     budget_categories = set(budget_dict.keys())
 
-    all_categories = sorted((actual_categories | budget_categories) - {"Income", "Salary"})
+    all_categories = sorted((actual_categories | budget_categories) - INCOME_CATEGORIES)
     for category in all_categories:
         budget = float(budget_dict.get(category, 0.0))
-        
-        actual_row = summary[summary["category"] == category] if not summary.empty else pd.DataFrame()
-        actual = float(actual_row['total_spend'].iloc[0]) if not actual_row.empty else 0.0
+
+        actual_row = (
+            summary[summary["category"] == category] if not summary.empty else pd.DataFrame()
+        )
+        actual = float(actual_row["total_spend"].iloc[0]) if not actual_row.empty else 0.0
 
         remaining = budget - actual
         pct_used = round((actual / budget * 100), 2) if budget > 0 else 0.0
 
-        rows.append({
-            "category" : category,
-            "budget" : budget,
-            "actual" : round(actual, 2),
-            "remaining" : round(remaining, 2),
-            "pct_used" : pct_used,
-            "over_budget" : actual > budget if budget > 0 else False,
-        })
-        return pd.DataFrame(rows).sort_values("pct_used", ascending=False).reset_index(drop=True)
+        rows.append(
+            {
+                "category": category,
+                "budget": budget,
+                "actual": round(actual, 2),
+                "remaining": round(remaining, 2),
+                "pct_used": pct_used,
+                "over_budget": actual > budget if budget > 0 else False,
+            }
+        )
+
+    return pd.DataFrame(rows).sort_values("pct_used", ascending=False).reset_index(drop=True)
 
 
 def compute_kpis(df: pd.DataFrame) -> dict[str, float | int]:
-    """Compute top-level KPI metrics for dashboard display."""
-    if df.empty:
-        return {
-            "total_income": 0.0,
-            "total_expenses": 0.0,
-            "net_savings": 0.0,
-            "transaction_count": 0,
-        }
+    """Compute top-level KPI metrics for dashboard display (dict for UI compatibility)."""
+    return AnalyticsService().compute_kpis(df).as_dict()
 
-    income = df.loc[df["transaction_type"] == "income", "amount"].sum()
-    expenses = df.loc[df["transaction_type"] == "expense", "amount"].sum()
-    return {
-        "total_income": round(float(income), 2),
-        "total_expenses": round(float(expenses), 2),
-        "net_savings": round(float(income - expenses), 2),
-        "transaction_count": len(df),
-    }
+
+class AnalyticsService:
+    """Facade over analytics helpers so UIs depend on one object, not free functions."""
+
+    def category_summary(self, df: pd.DataFrame) -> pd.DataFrame:
+        return get_category_summary(df)
+
+    def monthly_trends(self, df: pd.DataFrame, freq: str = "ME") -> pd.DataFrame:
+        return get_monthly_trends(df, freq=freq)
+
+    def weekly_trends(self, df: pd.DataFrame) -> pd.DataFrame:
+        return get_weekly_trends(df)
+
+    def detect_anomalies(
+        self,
+        df: pd.DataFrame,
+        threshold_std: float = 2.5,
+        detector: AnomalyDetector | None = None,
+    ) -> pd.DataFrame:
+        return detect_anomalies(df, threshold_std=threshold_std, detector=detector)
+
+    def check_budget_limits(
+        self, df: pd.DataFrame, budget_dict: dict[str, float]
+    ) -> pd.DataFrame:
+        return check_budget_limits(df, budget_dict)
+
+    def compute_kpis(self, df: pd.DataFrame) -> KPIMetrics:
+        if df.empty:
+            return KPIMetrics(0.0, 0.0, 0.0, 0)
+
+        income = df.loc[
+            df["transaction_type"] == TransactionType.INCOME.value, "amount"
+        ].sum()
+        expenses = df.loc[
+            df["transaction_type"] == TransactionType.EXPENSE.value, "amount"
+        ].sum()
+        return KPIMetrics(
+            total_income=round(float(income), 2),
+            total_expenses=round(float(expenses), 2),
+            net_savings=round(float(income - expenses), 2),
+            transaction_count=len(df),
+        )

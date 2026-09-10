@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 from datetime import date
 from pathlib import Path
 
@@ -10,83 +9,24 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from modules.analytics import (
-    check_budget_limits,
-    compute_kpis,
-    detect_anomalies,
-    get_category_summary,
-    get_monthly_trends,
-)
-from modules.classifier import TransactionClassifier
-from modules.ingestion import BankStatementLoader
+from modules.constants import DEFAULT_BUDGETS
+from modules.exporters import ExportStrategyFactory
+from modules.facade import BankAnalyzerFacade
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Manually add new category, if you update "category_rules.json"
-DEFAULT_BUDGETS = { 
-    "Supermarket": 100000,
-    "Transport": 30000,
-    "Cafes and Restaurants": 50000,
-    "Utilities": 40000,
-    "Shopping": 50000,
-    "Fuel": 40000,
-    "Subscriptions": 15000,
-    "Healthcare": 30000,
-    "Fitness and Sport": 25000,
-    "Entertainment": 25000,
-    "Beauty and Personal Care": 20000,
-    "E-commerce": 30000,
-    "Education": 50000,
-    "Pets": 15000,
-    "Travel": 100000,
-    "Insurance": 20000,
-    "Loans and Credit": 100000,
-    "Rent": 150000,
-    "Charity and Donations": 10000,
-    "Government and Fees": 15000,
-    "Fee": 5000,
-    "Other": 20000,
-}
-
-
-def convert_df_to_csv_bytes(
-    df: pd.DataFrame, columns: list[str] | None = None
-) -> bytes:
-    """Converts DataFrame to UTF-8-SIG encoded CSV bytes for specified or all columns."""
-    target_df = df[columns] if columns is not None else df
-    return target_df.to_csv(index=False).encode("utf-8-sig")
-
-
-def convert_df_to_excel_bytes(
-    df: pd.DataFrame, columns: list[str] | None = None
-) -> bytes:
-    """Converts DataFrame to Excel (.xlsx) bytes using openpyxl for specified or all columns."""
-    target_df = df[columns] if columns is not None else df
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine="openpyxl") as writer:
-        target_df.to_excel(writer, index=False, sheet_name="Transactions")
-    return output.getvalue()
-
 
 def init_session_state() -> None:
-    defaults = {
+    defaults: dict[str, object] = {
         "df": None,
-        "classifier": TransactionClassifier(),
-        "loader": BankStatementLoader(),
+        "analyzer": BankAnalyzerFacade(),
     }
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
 
 
-def apply_date_filter(df: pd.DataFrame, start: date, end: date) -> pd.DataFrame:
-    if df is None or df.empty:
-        return df
-    mask = (df["date"].dt.date >= start) & (df["date"].dt.date <= end)
-    return df.loc[mask].copy()
-
-
-def render_metrics(kpis: dict) -> None:
+def render_metrics(kpis: dict[str, float | int]) -> None:
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Total Income", f"{kpis['total_income']:,.0f} AMD")
     c2.metric("Total Expenses", f"{kpis['total_expenses']:,.0f} AMD")
@@ -94,9 +34,9 @@ def render_metrics(kpis: dict) -> None:
     c4.metric("Transactions", kpis["transaction_count"])
 
 
-def tab_visual_analytics(df: pd.DataFrame) -> None:
+def tab_visual_analytics(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> None:
     expenses = df[df["transaction_type"] == "expense"]
-    summary = get_category_summary(df)
+    summary = analyzer.analytics.category_summary(df)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -114,7 +54,7 @@ def tab_visual_analytics(df: pd.DataFrame) -> None:
             st.info("No expense data to display.")
 
     with col2:
-        trends = get_monthly_trends(df)
+        trends = analyzer.analytics.monthly_trends(df)
         if not trends.empty:
             fig_line = px.bar(
                 trends,
@@ -138,7 +78,7 @@ def tab_visual_analytics(df: pd.DataFrame) -> None:
         st.info("No expenses found.")
 
 
-def tab_transaction_explorer(df: pd.DataFrame) -> None:
+def tab_transaction_explorer(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> None:
     categories = ["All"] + sorted(df["category"].dropna().unique().tolist())
     col1, col2 = st.columns([1, 2])
     with col1:
@@ -169,7 +109,7 @@ def tab_transaction_explorer(df: pd.DataFrame) -> None:
     selected_cols = st.multiselect(
         "Select Columns to Display & Export",
         options=available_cols,
-        default=available_cols[0 : len(available_cols)-2], # "confidence" and "method" are not selected by default
+        default=available_cols[0 : len(available_cols) - 2],
     )
 
     if not selected_cols:
@@ -189,23 +129,18 @@ def tab_transaction_explorer(df: pd.DataFrame) -> None:
     if not export_df.empty:
         col_fmt, col_btn = st.columns([1, 2], vertical_alignment="bottom")
         with col_fmt:
-            export_format = st.selectbox("Export Format", ["Excel (.xlsx)", "CSV"])
+            export_format = st.selectbox("Export Format", ExportStrategyFactory.labels())
         with col_btn:
-            st.write("")  # Alignment spacing
-            if export_format == "CSV":
-                file_bytes = convert_df_to_csv_bytes(export_df, columns=selected_cols)
-                file_name = "transactions_export.csv"
-                mime = "text/csv"
-            else:
-                file_bytes = convert_df_to_excel_bytes(export_df, columns=selected_cols)
-                file_name = "transactions_export.xlsx"
-                mime = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            st.write("")
+            strategy = ExportStrategyFactory.create(export_format)
+            file_bytes = strategy.export(export_df, columns=selected_cols)
+            file_name = f"transactions_export{strategy.file_extension}"
 
             st.download_button(
                 label=f"📥 Download as {export_format}",
                 data=file_bytes,
                 file_name=file_name,
-                mime=mime,
+                mime=strategy.mime_type,
                 use_container_width=True,
             )
 
@@ -219,24 +154,19 @@ def tab_transaction_explorer(df: pd.DataFrame) -> None:
         )
         new_category = st.selectbox(
             "New Category",
-            st.session_state.classifier.get_categories(),
+            analyzer.get_categories(),
         )
         if st.button("Apply Override"):
-            row = filtered.loc[filtered["transaction_id"] == txn_id].iloc[0]
-            st.session_state.classifier.manual_override(
-                transaction_id=txn_id,
-                new_category=new_category,
-                cleaned_description=row["cleaned_description"],
+            st.session_state.df = analyzer.override_category(
+                st.session_state.df, txn_id, new_category
             )
-            mask = st.session_state.df["transaction_id"] == txn_id
-            st.session_state.df.loc[mask, "category"] = new_category
-            st.session_state.df.loc[mask, "method"] = "manual"
-            st.session_state.df.loc[mask, "confidence"] = 1.0
-            st.success(f"Category updated to '{new_category}'. Rules/dataset updated for retraining.")
+            st.success(
+                f"Category updated to '{new_category}'. Rules/dataset updated for retraining."
+            )
             st.rerun()
 
 
-def tab_budget_anomalies(df: pd.DataFrame) -> None:
+def tab_budget_anomalies(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> None:
     st.subheader("Budget Limits")
     budget_input: dict[str, float] = {}
     cols = st.columns(3)
@@ -250,7 +180,7 @@ def tab_budget_anomalies(df: pd.DataFrame) -> None:
                 key=f"budget_{cat}",
             )
 
-    budget_report = check_budget_limits(df, budget_input)
+    budget_report = analyzer.analytics.check_budget_limits(df, budget_input)
     if not budget_report.empty:
         for _, row in budget_report.iterrows():
             pct = min(row["pct_used"], 100)
@@ -264,7 +194,7 @@ def tab_budget_anomalies(df: pd.DataFrame) -> None:
     st.divider()
     st.subheader("Anomaly Detection")
     threshold = st.slider("Z-Score Threshold", 1.5, 4.0, 2.5, 0.1)
-    anomalies = detect_anomalies(df, threshold_std=threshold)
+    anomalies = analyzer.analytics.detect_anomalies(df, threshold_std=threshold)
     if anomalies.empty:
         st.info("No anomalies detected at this threshold.")
     else:
@@ -283,9 +213,12 @@ def main() -> None:
         initial_sidebar_state="expanded",
     )
     init_session_state()
+    analyzer: BankAnalyzerFacade = st.session_state.analyzer
 
     st.title("🏦 Bank Statement Analyzer")
-    st.caption("Parse, categorize, and visualize bank statements from Armenian and international banks.")
+    st.caption(
+        "Parse, categorize, and visualize bank statements from Armenian and international banks."
+    )
 
     with st.sidebar:
         st.header("Configuration")
@@ -293,12 +226,8 @@ def main() -> None:
             "Upload Bank Statement (CSV / Excel / PDF)",
             type=["csv", "xlsx", "xls", "pdf"],
         )
-        loader: BankStatementLoader = st.session_state.loader
-        banks = ["auto_detect"] + loader.list_banks()
-        bank_labels = {
-            "auto_detect": "Auto Detect",
-            **{k: loader._configs[k]["display_name"] for k in loader.list_banks()},
-        }
+        bank_labels = analyzer.bank_labels()
+        banks = ["auto_detect"] + analyzer.list_banks()
         selected_bank = st.selectbox(
             "Bank",
             banks,
@@ -312,8 +241,9 @@ def main() -> None:
                 tmp_path.parent.mkdir(parents=True, exist_ok=True)
                 tmp_path.write_bytes(uploaded.getvalue())
                 try:
-                    raw = loader.load(tmp_path, bank_key=selected_bank)
-                    classified = st.session_state.classifier.classify(raw)
+                    classified = analyzer.load_and_classify(
+                        tmp_path, bank_key=selected_bank
+                    )
                     st.session_state.df = classified
                     st.success(f"Loaded {len(classified)} transactions.")
                 except Exception as exc:
@@ -330,12 +260,16 @@ def main() -> None:
                 max_value=max_date,
             )
             if isinstance(date_range, tuple) and len(date_range) == 2:
-                df = apply_date_filter(df, date_range[0], date_range[1])
+                start, end = date_range
+                if isinstance(start, date) and isinstance(end, date):
+                    df = analyzer.apply_date_filter(df, start, end)
         else:
             df = None
 
     if df is None or df.empty:
-        st.info("Upload a statement file (CSV, XLSX, XLS, PDF) using the sidebar to get started.")
+        st.info(
+            "Upload a statement file (CSV, XLSX, XLS, PDF) using the sidebar to get started."
+        )
         st.markdown(
             """
             **Supported features:**
@@ -347,15 +281,17 @@ def main() -> None:
         )
         return
 
-    render_metrics(compute_kpis(df))
+    render_metrics(analyzer.compute_kpis(df).as_dict())
 
-    tab1, tab2, tab3 = st.tabs(["Visual Analytics", "Transaction Explorer", "Budget & Anomalies"])
+    tab1, tab2, tab3 = st.tabs(
+        ["Visual Analytics", "Transaction Explorer", "Budget & Anomalies"]
+    )
     with tab1:
-        tab_visual_analytics(df)
+        tab_visual_analytics(df, analyzer)
     with tab2:
-        tab_transaction_explorer(df)
+        tab_transaction_explorer(df, analyzer)
     with tab3:
-        tab_budget_anomalies(df)
+        tab_budget_anomalies(df, analyzer)
 
 
 if __name__ == "__main__":
