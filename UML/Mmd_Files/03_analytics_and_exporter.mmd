@@ -1,0 +1,47 @@
+classDiagram
+    class AnomalyDetector {
+        <<abstract>>
+        + detect(expenses)* DataFrame
+    }
+
+    class ZScoreAnomalyDetector {
+        + float threshold_std
+        + detect(expenses) DataFrame
+    }
+
+    class AnalyticsService {
+        + category_summary(df) DataFrame
+        + monthly_trends(df, freq) DataFrame
+        + weekly_trends(df) DataFrame
+        + detect_anomalies(df, threshold_std, detector) DataFrame
+        + check_budget_limits(df, budget_dict) DataFrame
+        + compute_kpis(df) KPIMetrics
+    }
+
+    class ExportStrategy {
+        <<interface>>
+        + string file_extension*
+        + string mime_type*
+        + export(df, columns)* bytes
+    }
+
+    class CsvExportStrategy {
+        + export(df, columns) bytes
+    }
+
+    class ExcelExportStrategy {
+        + export(df, columns) bytes
+    }
+
+    class ExportStrategyFactory {
+        - dict _REGISTRY$
+        + labels()$ list
+        + create(label)$ ExportStrategy
+    }
+
+    AnomalyDetector <|-- ZScoreAnomalyDetector : Realization
+    ExportStrategy <|.. CsvExportStrategy : Realization
+    ExportStrategy <|.. ExcelExportStrategy : Realization
+
+    AnalyticsService ..> AnomalyDetector : uses strategy
+    ExportStrategyFactory ..> ExportStrategy : creates

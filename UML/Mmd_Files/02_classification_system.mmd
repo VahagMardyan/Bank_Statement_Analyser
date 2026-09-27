@@ -1,0 +1,61 @@
+classDiagram
+    class ClassificationResult {
+        + string category
+        + float confidence
+        + string method
+        + as_tuple() tuple
+    }
+
+    class RuleIndex {
+        - dict rules
+        - TfidVectorizer _vectorizer
+        + iter_keyword_rules()
+        + iter_merchant_rules()
+        + find_merchant_match(text)
+        + find_keyword_match(text)
+        + predict_vector(text, threshold)
+    }
+
+    class ClassificationHandler {
+        <<abstract>>
+        # ClassificationHandler _next
+        + set_next(handler) ClassificationHandler
+        + handle(text) ClassificationResult
+        # try_classify(text)* ClassificationResult
+    }
+
+    class MerchantRuleHandler {
+        - RuleIndex _index
+        # try_classify(text) ClassificationResult
+    }
+
+    class KeywordRuleHandler {
+        - RuleIndex _index
+        # try_classify(text) ClassificationResult
+    }
+
+    class VectorSimilarityHandler {
+        - RuleIndex _index
+        # try_classify(text) ClassificationResult
+    }
+
+    class TransactionClassifier {
+        - RuleIndex _index
+        - ClassificationHandler _chain
+        + classify(target)
+        + classify_dataframe(df)
+        + manual_override(transaction_id, new_category, cleaned_desc)
+    }
+
+    ClassificationHandler <|-- MerchantRuleHandler : Inheritance
+    ClassificationHandler <|-- KeywordRuleHandler : Inheritance
+    ClassificationHandler <|-- VectorSimilarityHandler : Inheritance
+
+    ClassificationHandler "0..1" o-- "0..1" ClassificationHandler : _next chain
+    MerchantRuleHandler --> RuleIndex : uses
+    KeywordRuleHandler --> RuleIndex : uses
+    VectorSimilarityHandler --> RuleIndex : uses
+
+    TransactionClassifier *-- RuleIndex : Composition
+    TransactionClassifier *-- ClassificationHandler : owns chain head
+    ClassificationHandler ..> ClassificationResult : creates

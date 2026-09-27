@@ -1,0 +1,41 @@
+classDiagram
+    class StatementLoaderProtocol {
+        <<interface>>
+        + list_banks() list
+        + bank_display_name(bank_key) string
+        + bank_labels() dict
+        + load(file_path, bank_key, encoding) DataFrame
+    }
+
+    class ClassifierProtocol {
+        <<interface>>
+        + get_categories() list
+        + classify(target)
+        + manual_override(transaction_id, new_category, cleaned_description)
+    }
+
+    class KPIMetrics {
+        + float total_income
+        + float total_expenses
+        + float net_savings
+        + int transaction_count
+        + as_dict() dict
+    }
+
+    class BankAnalyzerFacade {
+        - StatementLoaderProtocol _loader
+        - ClassifierProtocol _classifier
+        - AnalyticsService _analytics
+        + list_banks() list
+        + bank_labels() dict
+        + load_and_classify(file_path, bank_key) DataFrame
+        + override_category(df, transaction_id, new_category) DataFrame
+        + get_categories() list
+        + apply_date_filter(df, start, end) DataFrame
+        + compute_kpis(df) KPIMetrics
+    }
+
+    BankAnalyzerFacade --> StatementLoaderProtocol : Dependency Injection
+    BankAnalyzerFacade --> ClassifierProtocol : Dependency Injection
+    BankAnalyzerFacade --> AnalyticsService : Composition
+    BankAnalyzerFacade ..> KPIMetrics : returns

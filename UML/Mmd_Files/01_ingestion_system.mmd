@@ -1,0 +1,51 @@
+classDiagram
+    class StatementReader {
+        <<abstract>>
+        # TableExtractor _table_extractor
+        + can_read(path)* bool
+        + read(path, encoding)* DataFrame
+    }
+
+    class PdfStatementReader {
+        + can_read(path) bool
+        + read(path, encoding) DataFrame
+        + extract_preview_rows(path, limit) list
+    }
+
+    class ExcelStatementReader {
+        + can_read(path) bool
+        + read(path, encoding) DataFrame
+        + preview(path, nrows) DataFrame
+    }
+
+    class CsvStatementReader {
+        + can_read(path) bool
+        + read(path, encoding) DataFrame
+    }
+
+    class TableExtractor {
+        + extract(raw_df) DataFrame
+    }
+
+    class StatementReaderFactory {
+        - PdfStatementReader _pdf
+        - ExcelStatementReader _excel
+        - CsvStatementReader _csv
+        + create(path) StatementReader
+    }
+
+    class BankStatementLoader {
+        - dict _configs
+        - StatementReaderFactory _reader_factory
+        + detect_bank(file_path) string
+        + load(file_path, bank_key, encoding) DataFrame
+        + clean_description(text)$ string
+    }
+
+    StatementReader <|-- PdfStatementReader : Inheritance
+    StatementReader <|-- ExcelStatementReader : Inheritance
+    StatementReader <|-- CsvStatementReader : Inheritance
+
+    StatementReader o-- TableExtractor : uses
+    StatementReaderFactory *-- StatementReader : Aggregates readers
+    BankStatementLoader *-- StatementReaderFactory : Composition
