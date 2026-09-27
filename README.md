@@ -2,6 +2,16 @@
 
 A modular, production-ready application for parsing, standardizing, categorizing, and visualizing bank statements from CSV, XLS, XLSX  and PDF files. Supports Armenian and English bank exports with hybrid rule-based + ML categorization.
 
+## Key Design Patterns
+
+The project is built on solid Object-Oriented Design Principles (SOLID) and implements several key design patterns:
+
+- **Facade Pattern (`BankAnalyzerFacade`)**: Provides a unified, high-level interface to simplify interaction between the presentation layer (Streamlit / PySide6) and complex subsystems (Ingestion, Classification, Analytics).
+- **Chain of Responsibility Pattern (`ClassificationHandler`)**: Implements sequential transaction categorization (`MerchantRuleHandler` → `KeywordRuleHandler` → `VectorSimilarityHandler`).
+- **Strategy Pattern (`ExportStrategy`, `AnomalyDetector`)**: Enables flexible switching between algorithms at runtime for file exports (CSV, Excel) and anomaly detection (Z-Score).
+- **Factory Pattern (`StatementReaderFactory`, `ExportStrategyFactory`)**: Encapsulates the instantiation logic of various file readers and export formats based on input runtime conditions.
+- **Dependency Injection / Protocol Pattern (`StatementLoaderProtocol`, `ClassifierProtocol`)**: Decouples high-level application logic from concrete implementations, enhancing testability and maintainability.
+
 ## Project Structure
 
 ```
@@ -23,10 +33,11 @@ A modular, production-ready application for parsing, standardizing, categorizing
 │
 └── requirements.txt
 └── README.md
-└── test_*.csv                     # Generated CSV Stataments
+└── test_*.csv                    # Generated CSV Stataments
 └── generate_statement_en.py      # Statement Generator (English)
 └── generate_statement_am.py      # Statement Generator (Armenian)
-└── Real_Statements                # Real Statements for testing (in .gitignore to keep privacy)
+└── Real_Statements               # Real Statements for testing (in .gitignore to keep privacy)
+└── UML 						  # Project's UML Diagrams
 ```
 
 ## Requirements
