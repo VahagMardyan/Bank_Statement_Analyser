@@ -224,6 +224,69 @@ class KeywordRuleHandler(ClassificationHandler):
         return ClassificationResult(match[0], 0.95, ClassificationMethod.KEYWORD_RULE.value)
 
 
+INDIVIDUAL_ENTREPRENEUR = "Individual Entrepreneurs"
+
+# Legal-form markers: ԱՁ (Armenian), IE/PE (Latin transliterations), ИП (Russian).
+_IE_MARKERS = frozenset({"աձ", "ie", "pe", "ип"})
+# Typical Armenian surname endings, Latin and Armenian script.
+_SURNAME_RE = re.compile(r"(yan|ian|yants|ants|unts|uni|յան|յանց|ունի|ян)$")
+# Words that mean the counterparty is a business, not a person's name.
+_BUSINESS_WORDS = frozenset({
+    "market", "supermarket", "mart", "shop", "store", "pharm", "pharmacy",
+    "house", "city", "club", "center", "centre", "clothes", "cafe", "bar",
+    "fitness", "salon", "studio", "service", "group", "trade", "plus",
+})
+# Card-payment prefixes after cleaning: ACBA "Վճարում | ...", Ameriabank "Ք: ...".
+_CARD_PREFIXES = ("վճարում ", "ք ")
+_TAIL_NOISE = frozenset({
+    "yerevan", "yerev", "yereva", "am", "arm", "armenia", "ամերիաբանկ", "փբը",
+    "գլխամասային", "գրասենյակ", "երևան",
+})
+
+
+def looks_like_individual_entrepreneur(text: str) -> bool:
+    """True if a card payment goes to a person-named business (ԱՁ / IE / PE).
+
+    Examples: "Վճարում | K. A. MELKONYAN", "Ք: ARTAK BEGYAN IE Yerevan AM".
+    Personal transfers ("Անձնական փոխանցում | ...") never reach this check,
+    because the Transfer keyword rule fires first.
+    """
+    tokens = text.split()
+    if any(tok in _IE_MARKERS for tok in tokens):
+        return True
+    if not text.startswith(_CARD_PREFIXES):
+        return False
+    name = [
+        t for t in tokens[1:]
+        if t not in _TAIL_NOISE and not t.isdigit()
+    ]
+    if not 2 <= len(name) <= 4:
+        return False
+    if any(t in _BUSINESS_WORDS or not t.isalpha() for t in name):
+        return False
+    return any(len(t) > 4 and _SURNAME_RE.search(t) for t in name)
+
+
+class IndividualEntrepreneurHandler(ClassificationHandler):
+    """Card payments to businesses registered under the owner's name.
+
+    In Armenia many small shops, salons and kiosks are individual
+    entrepreneurs, so the statement shows only a name. The real category is
+    unknown, so they get their own bucket instead of a wrong guess.
+    """
+
+    def try_classify(
+        self, text: str, exclude: Exclude = frozenset()
+    ) -> Optional[ClassificationResult]:
+        if INDIVIDUAL_ENTREPRENEUR in exclude:
+            return None
+        if looks_like_individual_entrepreneur(text):
+            return ClassificationResult(
+                INDIVIDUAL_ENTREPRENEUR, 0.7, ClassificationMethod.NAME_HEURISTIC.value
+            )
+        return None
+
+
 class LearnedModelHandler(ClassificationHandler):
     """Supervised model trained on rules + the user's own labelled history."""
 
@@ -264,9 +327,11 @@ class VectorSimilarityHandler(ClassificationHandler):
 def build_classification_chain(
     index: RuleIndex, model: Optional[LearnedCategoryModel] = None
 ) -> ClassificationHandler:
-    """Assemble merchant -> keyword -> learned model -> fuzzy vector -> Other."""
+    """Assemble merchant -> keyword -> entrepreneur name -> learned model ->
+    fuzzy vector -> Other."""
     head = MerchantRuleHandler(index)
     tail = head.set_next(KeywordRuleHandler(index))
+    tail = tail.set_next(IndividualEntrepreneurHandler())
     if model is not None:
         tail = tail.set_next(LearnedModelHandler(model))
     tail.set_next(VectorSimilarityHandler(index))

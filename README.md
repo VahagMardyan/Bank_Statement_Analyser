@@ -6,14 +6,14 @@ A modular application for parsing, standardizing, categorizing, and visualizing 
 
 The project follows SOLID principles and implements these design patterns:
 
-| Pattern                                   | Where                                                                                 | Purpose                                                                                                                                             |
-| ----------------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Facade**                          | `BankAnalyzerFacade` (`facade.py`)                                                | One high-level entry point (load → classify → learn → analyze) for the UI layer (Streamlit)                                                      |
-| **Chain of Responsibility**         | `ClassificationHandler` (`classification_handlers.py`)                            | Sequential categorization: `MerchantRuleHandler` → `KeywordRuleHandler` → `LearnedModelHandler` → `VectorSimilarityHandler` → `Other` |
-| **Strategy**                        | `StatementReader`, `ExportStrategy`, `AnomalyDetector`                          | Interchangeable algorithms for file reading (PDF / Excel / CSV), exporting (CSV / Excel) and anomaly detection (Z-score)                            |
-| **Factory**                         | `StatementReaderFactory`, `ExportStrategyFactory`, `build_classification_chain` | Picks the right reader / exporter from the file or UI choice and assembles the classification chain                                                 |
-| **Template Method**                 | `BankStatementLoader.load`                                                          | Fixed pipeline: detect bank → read file → standardize schema                                                                                      |
-| **Dependency Injection / Protocol** | `StatementLoaderProtocol`, `ClassifierProtocol`                                   | High-level code depends on interfaces, so the loader, classifier and ML model can be swapped or mocked in tests                                     |
+| Pattern                                   | Where                                                                                 | Purpose                                                                                                                                                                                  |
+| ----------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Facade**                          | `BankAnalyzerFacade` (`facade.py`)                                                | One high-level entry point (load → classify → learn → analyze) for the UI layer (Streamlit)                                                                                           |
+| **Chain of Responsibility**         | `ClassificationHandler` (`classification_handlers.py`)                            | Sequential categorization: `MerchantRuleHandler` → `KeywordRuleHandler` → `IndividualEntrepreneurHandler` → `LearnedModelHandler` → `VectorSimilarityHandler` → `Other` |
+| **Strategy**                        | `StatementReader`, `ExportStrategy`, `AnomalyDetector`                          | Interchangeable algorithms for file reading (PDF / Excel / CSV), exporting (CSV / Excel) and anomaly detection (Z-score)                                                                 |
+| **Factory**                         | `StatementReaderFactory`, `ExportStrategyFactory`, `build_classification_chain` | Picks the right reader / exporter from the file or UI choice and assembles the classification chain                                                                                      |
+| **Template Method**                 | `BankStatementLoader.load`                                                          | Fixed pipeline: detect bank → read file → standardize schema                                                                                                                           |
+| **Dependency Injection / Protocol** | `StatementLoaderProtocol`, `ClassifierProtocol`                                   | High-level code depends on interfaces, so the loader, classifier and ML model can be swapped or mocked in tests                                                                          |
 
 ## Project Structure
 
@@ -120,14 +120,15 @@ Each transaction goes through the chain until one step is confident:
 1. **Merchant rule:** known merchant alias from `category_rules.json` (longest match wins), e.g. `ART LUNCH` → Cafes and Restaurants. Confidence 1.0.
 2. **Keyword rule:** category keyword (Armenian / English / Russian), e.g. `ուսման վարձ` → Education. Confidence 0.95.
    The bank's own description is checked first and the payee/place second, so `Commission | ՀԱՊՀ` is a Fee, not tuition.
-3. **ML model** (`ml_model.py`), used only when no rule matches:
+3. **Individual entrepreneur detector:** in Armenia many small shops, salons and kiosks are registered as individual entrepreneurs (ԱՁ / IE / PE), so the statement shows only the owner's name, e.g. `Վճարում | K. A. MELKONYAN` or `Ք: ARTAK BEGYAN IE`. A card payment is put into **Individual Entrepreneurs** if it carries an ԱՁ/IE/PE/ИП marker, or if the payee is 2–4 name-like words with an Armenian surname ending (`-yan`, `-ian`, `-uni`, `-յան`…) and no business words (`market`, `pharm`, `club`…). Personal transfers are not affected, because the Transfer rule fires first. Confidence 0.7. On the real data it caught 164 rows with 0 false positives.
+4. **ML model** (`ml_model.py`), used only when nothing above matches:
    - **Features:** TF-IDF on character n-grams (2–5, robust to typos and transliteration) + TF-IDF on word uni/bi-grams, after removing bank boilerplate (`POS`, `YEREVAN`, `Ամերիաբանկ ՓԲԸ`, dates, card numbers…)
    - **Classifier:** multinomial **Logistic Regression** (scikit-learn), `class_weight="balanced"`, `C=8`
    - **Training data:** the JSON rules (cold start) + rows the rules labelled in your uploaded statements (self-training) + manual overrides (highest weight, ×6)
    - **Answers only when confident:** probability ≥ 0.25 **and** a lead of ≥ 0.20 over the second-best class; otherwise the row falls through
    - Retrains automatically after every upload and every override; saved in `data/training_data.csv`
-4. **Fuzzy match:** char n-gram TF-IDF shortlist + word-by-word similarity check on short spans of the description; catches typos such as `STARBUKS` → Starbucks.
-5. **Other:** nothing was confident enough.
+5. **Fuzzy match:** char n-gram TF-IDF shortlist + word-by-word similarity check on short spans of the description; catches typos such as `STARBUKS` → Starbucks.
+6. **Other:** nothing was confident enough.
 
 Expense rows can never be classified as `Income` or `Salary`.
 
@@ -157,17 +158,17 @@ The tuned thresholds keep accuracy the same but cut wrong guesses about five-fol
 
 ## Unified Transaction Schema
 
-| Column                  | Type     | Description                                                                                 |
-| ----------------------- | -------- | ------------------------------------------------------------------------------------------- |
-| `date`                | datetime | Transaction date                                                                            |
-| `description`         | str      | Bank text; merchant/payee appended after `\|` when the bank stores it in a separate column |
-| `cleaned_description` | str      | Sanitized text (used for manual-override keywords)                                          |
-| `amount`              | float    | Absolute value in the account currency                                                      |
-| `transaction_type`    | str      | `income` or `expense`                                                                   |
-| `transaction_id`      | str      | Row identifier                                                                              |
-| `category`            | str      | Assigned category                                                                           |
-| `confidence`          | float    | Classification confidence (0–1)                                                            |
-| `method`              | str      | `Merchant rule`, `Keyword rule`, `ML model`, `Vector`, `manual`, or `None`      |
+| Column                  | Type     | Description                                                                                                |
+| ----------------------- | -------- | ---------------------------------------------------------------------------------------------------------- |
+| `date`                | datetime | Transaction date                                                                                           |
+| `description`         | str      | Bank text; merchant/payee appended after `\|` when the bank stores it in a separate column                |
+| `cleaned_description` | str      | Sanitized text (used for manual-override keywords)                                                         |
+| `amount`              | float    | Absolute value in the account currency                                                                     |
+| `transaction_type`    | str      | `income` or `expense`                                                                                  |
+| `transaction_id`      | str      | Row identifier                                                                                             |
+| `category`            | str      | Assigned category                                                                                          |
+| `confidence`          | float    | Classification confidence (0–1)                                                                           |
+| `method`              | str      | `Merchant rule`, `Keyword rule`, `Name heuristic`, `ML model`, `Vector`, `manual`, or `None` |
 
 ## Extending Category Rules
 

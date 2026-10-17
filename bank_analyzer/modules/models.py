@@ -22,6 +22,7 @@ class ClassificationMethod(str, Enum):
 
     MERCHANT_RULE = "Merchant rule"
     KEYWORD_RULE = "Keyword rule"
+    NAME_HEURISTIC = "Name heuristic"
     ML_MODEL = "ML model"
     VECTOR = "Vector"
     MANUAL = "manual"

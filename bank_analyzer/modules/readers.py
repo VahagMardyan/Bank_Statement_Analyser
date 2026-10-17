@@ -40,6 +40,14 @@ HEADER_AMOUNT_KEYWORDS = (
     "credit",
 )
 
+# pdfplumber's default x_tolerance (3) glues words in some PDFs (Idram:
+# "ԼԻԱՆԱ ԴԱՎԹՅԱՆ" -> "ԼԻԱՆԱԴԱՎԹՅԱՆ", "24/05/2022 12:00" -> "24/05/202212:00"),
+# which breaks keyword matching and loses the time. 1.5 keeps the spaces.
+PDF_X_TOLERANCE = 1.5
+# A complete date at the start of a cell (2- or 4-digit year, not a fragment
+# such as "24/05/202" left over when a column split cuts the year).
+FULL_DATE_START = re.compile(r"^\d{1,2}[./\-]\d{1,2}[./\-](?:\d{4}|\d{2})(?!\d)")
+
 BORDERLESS_DATE_TOKEN = re.compile(r"^\d{2}/\d{2}/\d{2},?$")
 BORDERLESS_TIME_TOKEN = re.compile(r"^\d{2}:\d{2}$")
 BORDERLESS_AMOUNT_TOKEN = re.compile(r"^[+\-][\d,]+\.\d{2}$")
@@ -239,28 +247,40 @@ class PdfStatementReader(StatementReader):
 
     @staticmethod
     def _extract_pdf_tables(path: Path) -> list[list[Any]]:
-        strategies: list[dict[str, str]] = [
-            {},
+        strategies: list[dict[str, Any]] = [
+            {"text_x_tolerance": PDF_X_TOLERANCE},
             {
                 "vertical_strategy": "text",
                 "horizontal_strategy": "text",
+                "text_x_tolerance": PDF_X_TOLERANCE,
             },
         ]
 
+        def transaction_rows(rows: list[list[Any]]) -> int:
+            # Score by rows that START with a date (= real transactions), not by
+            # raw row count: the "text" strategy can split a table into many
+            # fragment rows and would otherwise win with garbage.
+            return sum(
+                1
+                for row in rows
+                if row
+                and FULL_DATE_START.match(
+                    str(next((c for c in row if c not in (None, "")), "")).strip()
+                )
+            )
+
         best_rows: list[list[Any]] = []
+        best_score = -1
         with pdfplumber.open(path) as pdf:
             for settings in strategies:
                 rows: list[list[Any]] = []
                 for page in pdf.pages:
-                    tables = (
-                        page.extract_tables(settings)
-                        if settings
-                        else page.extract_tables()
-                    )
+                    tables = page.extract_tables(settings)
                     for table in tables:
                         rows.extend(table)
-                if len(rows) > len(best_rows):
-                    best_rows = rows
+                score = transaction_rows(rows)
+                if score > best_score:
+                    best_rows, best_score = rows, score
 
         return best_rows
 
@@ -270,7 +290,7 @@ class PdfStatementReader(StatementReader):
 
         with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
-                words = page.extract_words()
+                words = page.extract_words(x_tolerance=PDF_X_TOLERANCE)
                 if not words:
                     continue
 
@@ -476,3 +496,4 @@ class StatementReaderFactory:
     @property
     def excel_reader(self) -> ExcelStatementReader:
         return self._excel
+

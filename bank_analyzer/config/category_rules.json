@@ -422,27 +422,9 @@
         ]
       },
       {
-        "name": "K. A. Melkonyan",
-        "aliases": [
-          "k a melkonyan"
-        ]
-      },
-      {
-        "name": "Khachik Karapetyan",
-        "aliases": [
-          "khachik karapetyan"
-        ]
-      },
-      {
         "name": "Hamov Ojakh",
         "aliases": [
           "hamov ojakh"
-        ]
-      },
-      {
-        "name": "Astghik Sukoyan",
-        "aliases": [
-          "astghik sukoyan"
         ]
       },
       {
@@ -452,51 +434,9 @@
         ]
       },
       {
-        "name": "Geghamyan Eduard",
-        "aliases": [
-          "geghamyan eduard"
-        ]
-      },
-      {
-        "name": "Gexam Bareyan",
-        "aliases": [
-          "gexam bareyan"
-        ]
-      },
-      {
-        "name": "Bela Kirakosyan",
-        "aliases": [
-          "bela kirakosyan"
-        ]
-      },
-      {
-        "name": "Ella Xachatryan",
-        "aliases": [
-          "ella xachatryan"
-        ]
-      },
-      {
         "name": "Barev",
         "aliases": [
           "barev"
-        ]
-      },
-      {
-        "name": "Karen Ghazaryan",
-        "aliases": [
-          "karen ghazaryan"
-        ]
-      },
-      {
-        "name": "Khachatryan Ashot",
-        "aliases": [
-          "khachatryan ashot"
-        ]
-      },
-      {
-        "name": "Artak Begyan",
-        "aliases": [
-          "artak begyan"
         ]
       }
     ]
@@ -523,8 +463,7 @@
       "yerevan mall",
       "big fashion",
       "clothes",
-      "հագուստ",
-      "book house yerevan am 4410"
+      "հագուստ"
     ],
     "merchants": [
       {
@@ -850,7 +789,8 @@
       "электричество",
       "вода",
       "газ",
-      "интернет"
+      "интернет",
+      "տելեկոմարմենիաբբը"
     ],
     "merchants": [
       {
@@ -1545,5 +1485,9 @@
         ]
       }
     ]
+  },
+  "Individual Entrepreneurs": {
+    "keywords": [],
+    "merchants": []
   }
 }

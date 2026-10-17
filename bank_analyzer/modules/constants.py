@@ -24,6 +24,7 @@ DEFAULT_BUDGETS: dict[str, int] = {
     "Charity and Donations": 10000,
     "Government and Fees": 15000,
     "Fee": 5000,
+    "Individual Entrepreneurs": 30000,
     "Other": 20000,
 }
 
