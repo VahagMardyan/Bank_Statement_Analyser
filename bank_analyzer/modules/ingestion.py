@@ -52,6 +52,33 @@ NOISE_TOKENS: frozenset[str] = frozenset(
 LONG_NUMERIC_ID = re.compile(r"\b\d{6,}\b")
 SIGNED_AMOUNT_PATTERN = re.compile(r"^\s*[+\-]\s*[\d\s]+(?:[.,]\d+)?")
 
+ACCOUNT_CURRENCY_AMOUNT_HINTS = [
+    "հաշվի արժույթով",
+    "amount in account currency",
+    "account currency",
+]
+
+# Columns that carry merchant / counterparty information in addition to the
+# main description. ACBA puts only "Վճարում" in the description and the real
+# merchant in "Գործարքի վայրը"; Ameriabank CSV has a payee column.
+COUNTERPARTY_COLUMN_HINTS = (
+    "գործարքի վայրը",
+    "շահառու",
+    "վճարող",
+    "payee",
+    "beneficiary",
+    "counterparty",
+    "merchant",
+    "place",
+    "location",
+)
+
+# Clearing/processor names that appear on almost every card row - no signal.
+GENERIC_COUNTERPARTY = re.compile(
+    r"արմենիան\s*քարդ|visa\s*international|mastercard|միջն\.?/|փոխհաշվարկներ",
+    re.IGNORECASE,
+)
+
 BALANCE_ROW_KEYWORDS = (
     "մնացորդ",
     "balance",
@@ -285,12 +312,18 @@ class BankStatementLoader:
                 {"amount": final_amount, "transaction_type": transaction_type}
             )
 
-        amount_col = self._resolve_column(
-            df,
-            mapping.get(
-                "amount", ["գումար", "amount", "sum", "գործարքի գումար", "մուտք/ելք"]
-            ),
-        )
+        # Prefer the amount converted to the ACCOUNT currency. Ameriabank CSV
+        # exports have both "Գործարքի գումար" (e.g. -1.99 USD) and
+        # "Գործարքի գումար հաշվի արժույթով" (-738.29 AMD); using the first one
+        # silently records USD purchases as AMD.
+        amount_col = self._resolve_column(df, ACCOUNT_CURRENCY_AMOUNT_HINTS)
+        if amount_col is None:
+            amount_col = self._resolve_column(
+                df,
+                mapping.get(
+                    "amount", ["գումար", "amount", "sum", "գործարքի գումար", "մուտք/ելք"]
+                ),
+            )
         if amount_col is None:
             for col in df.columns:
                 vals = df[col].map(normalize_amount_string).dropna()
@@ -346,6 +379,43 @@ class BankStatementLoader:
             )
         return result
 
+    def _counterparty_series(
+        self, df: pd.DataFrame, desc_col: Optional[str]
+    ) -> pd.Series:
+        """Join merchant/payee/place columns into one cleaned text series."""
+        cols = []
+        for col in df.columns:
+            if col == desc_col:
+                continue
+            name = normalize_column_name(col).lower()
+            if any(hint in name for hint in COUNTERPARTY_COLUMN_HINTS):
+                cols.append(col)
+        if not cols:
+            return pd.Series([""] * len(df), index=df.index)
+
+        def clean_part(value: Any) -> str:
+            if pd.isna(value):
+                return ""
+            text = WHITESPACE.sub(" ", str(value)).strip(" ,;")
+            if not text or text.lower() in {"nan", "կիրառելի չէ"}:
+                return ""
+            if GENERIC_COUNTERPARTY.search(text):
+                return ""
+            return text
+
+        parts = df[cols].apply(
+            lambda row: " ".join(p for p in (clean_part(v) for v in row) if p), axis=1
+        )
+        return parts.astype(str)
+
+    @staticmethod
+    def _merge_description(desc: str, extra: str) -> str:
+        desc = WHITESPACE.sub(" ", str(desc)).strip()
+        extra = str(extra).strip()
+        if not extra or extra.lower() in desc.lower():
+            return desc
+        return f"{desc} | {extra}" if desc else extra
+
     @staticmethod
     def _is_balance_row(description: str) -> bool:
         lowered = str(description).lower()
@@ -392,7 +462,15 @@ class BankStatementLoader:
         descriptions = (
             raw_df[desc_col].fillna("").astype(str)
             if desc_col
-            else pd.Series([""] * len(raw_df))
+            else pd.Series([""] * len(raw_df), index=raw_df.index)
+        )
+        counterparty = self._counterparty_series(raw_df, desc_col)
+        descriptions = pd.Series(
+            [
+                self._merge_description(d, c)
+                for d, c in zip(descriptions, counterparty)
+            ],
+            index=raw_df.index,
         )
         dates = self._parse_dates(raw_df[date_col], bank_cfg.get("date_format"))
 

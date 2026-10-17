@@ -49,6 +49,7 @@ Thumbs.db
 
 ~$*.xlsx
 ~$*.xls
+training_data.csv
 
 /Real_Statements
 _upload.*

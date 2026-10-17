@@ -19,8 +19,8 @@
       {
         "name": "Yandex Go",
         "aliases": [
-          "yandex",
           "yandex go",
+          "yandex",
           "yandexgo",
           "яндекс",
           "яндекс го",
@@ -30,8 +30,8 @@
       {
         "name": "GG Taxi",
         "aliases": [
-          "gg",
           "gg taxi",
+          "gg",
           "gtaxi"
         ]
       },
@@ -58,10 +58,16 @@
         "aliases": [
           "yerevan transport"
         ]
+      },
+      {
+        "name": "Telcell Transport",
+        "aliases": [
+          "telcell transport",
+          "telcell trans"
+        ]
       }
     ]
   },
-
   "Fuel": {
     "keywords": [
       "fuel",
@@ -130,7 +136,6 @@
       }
     ]
   },
-
   "Salary": {
     "keywords": [
       "salary",
@@ -145,7 +150,6 @@
     ],
     "merchants": []
   },
-
   "Income": {
     "keywords": [
       "interest",
@@ -157,17 +161,19 @@
       "reward",
       "տոկոսագումար",
       "վերադարձ",
-      "cash back",
-      "cashback",
       "% կապիտ",
       "процент",
       "кэшбэк",
       "возврат",
-      "дивиденд"
+      "дивиденд",
+      "հետվճար",
+      "կենսաթոշակ",
+      "pension",
+      "scholarship",
+      "կրթաթոշակ"
     ],
     "merchants": []
   },
-
   "Cafes and Restaurants": {
     "keywords": [
       "restaurant",
@@ -226,17 +232,17 @@
       {
         "name": "Domino's",
         "aliases": [
+          "domino s",
           "domino",
-          "dominos",
-          "domino's"
+          "dominos"
         ]
       },
       {
         "name": "Papa John's",
         "aliases": [
+          "papa john s",
           "papa john",
-          "papa johns",
-          "papa john's"
+          "papa johns"
         ]
       },
       {
@@ -248,9 +254,9 @@
       {
         "name": "McDonald's",
         "aliases": [
+          "mcdonald s",
           "mcdonald",
-          "mcdonalds",
-          "mcdonald's"
+          "mcdonalds"
         ]
       },
       {
@@ -286,8 +292,8 @@
       {
         "name": "Bon Appétit",
         "aliases": [
-          "bon appetite",
-          "bon appétit"
+          "bon appétit",
+          "bon appetite"
         ]
       },
       {
@@ -323,8 +329,7 @@
       {
         "name": "Menu.am",
         "aliases": [
-          "menu am",
-          "menu.am"
+          "menu am"
         ]
       },
       {
@@ -333,10 +338,17 @@
           "yandex eats",
           "яндекс еда"
         ]
+      },
+      {
+        "name": "Mr. Gyros",
+        "aliases": [
+          "mr gyros",
+          "gyros",
+          "գիռոս"
+        ]
       }
     ]
   },
-
   "Supermarket": {
     "keywords": [
       "supermarket",
@@ -345,7 +357,9 @@
       "գrocery",
       "մթերք",
       "продуктовый",
-      "супермаркет"
+      "супермаркет",
+      "mrgeri",
+      "մրգեր"
     ],
     "merchants": [
       {
@@ -359,8 +373,7 @@
         "name": "Yerevan City",
         "aliases": [
           "yerevan city",
-          "երևան սիթի",
-          "yerevan-city"
+          "երեւան սիթի"
         ]
       },
       {
@@ -391,18 +404,6 @@
         ]
       },
       {
-        "name": "Yerevan Mall",
-        "aliases": [
-          "yerevan mall"
-        ]
-      },
-      {
-        "name": "BIG Fashion",
-        "aliases": [
-          "big fashion"
-        ]
-      },
-      {
         "name": "SPAR",
         "aliases": [
           "spar"
@@ -413,10 +414,93 @@
         "aliases": [
           "levon kirakosyan"
         ]
+      },
+      {
+        "name": "Fruit City",
+        "aliases": [
+          "fruit city"
+        ]
+      },
+      {
+        "name": "K. A. Melkonyan",
+        "aliases": [
+          "k a melkonyan"
+        ]
+      },
+      {
+        "name": "Khachik Karapetyan",
+        "aliases": [
+          "khachik karapetyan"
+        ]
+      },
+      {
+        "name": "Hamov Ojakh",
+        "aliases": [
+          "hamov ojakh"
+        ]
+      },
+      {
+        "name": "Astghik Sukoyan",
+        "aliases": [
+          "astghik sukoyan"
+        ]
+      },
+      {
+        "name": "Atenk",
+        "aliases": [
+          "atenk"
+        ]
+      },
+      {
+        "name": "Geghamyan Eduard",
+        "aliases": [
+          "geghamyan eduard"
+        ]
+      },
+      {
+        "name": "Gexam Bareyan",
+        "aliases": [
+          "gexam bareyan"
+        ]
+      },
+      {
+        "name": "Bela Kirakosyan",
+        "aliases": [
+          "bela kirakosyan"
+        ]
+      },
+      {
+        "name": "Ella Xachatryan",
+        "aliases": [
+          "ella xachatryan"
+        ]
+      },
+      {
+        "name": "Barev",
+        "aliases": [
+          "barev"
+        ]
+      },
+      {
+        "name": "Karen Ghazaryan",
+        "aliases": [
+          "karen ghazaryan"
+        ]
+      },
+      {
+        "name": "Khachatryan Ashot",
+        "aliases": [
+          "khachatryan ashot"
+        ]
+      },
+      {
+        "name": "Artak Begyan",
+        "aliases": [
+          "artak begyan"
+        ]
       }
     ]
   },
-
   "Shopping": {
     "keywords": [
       "bookstore",
@@ -435,7 +519,12 @@
       "одежда",
       "магазин",
       "покупка",
-      "торговый центр"
+      "торговый центр",
+      "yerevan mall",
+      "big fashion",
+      "clothes",
+      "հագուստ",
+      "book house yerevan am 4410"
     ],
     "merchants": [
       {
@@ -474,7 +563,6 @@
         "name": "H&M",
         "aliases": [
           "h m",
-          "h&m",
           "hm"
         ]
       },
@@ -493,7 +581,8 @@
       {
         "name": "VLV Electronics",
         "aliases": [
-          "vlv electronics"
+          "vlv electronics",
+          "vlv electroni"
         ]
       },
       {
@@ -553,19 +642,22 @@
       {
         "name": "Yerevan.ru Electronics",
         "aliases": [
-          "yerevan ru electronics",
-          "yerevan.ru electronics"
+          "yerevan ru electronics"
+        ]
+      },
+      {
+        "name": "Fix Price",
+        "aliases": [
+          "fix price"
         ]
       }
     ]
   },
-
   "E-commerce": {
     "keywords": [
       "online store",
       "online shop",
       "e commerce",
-      "e-commerce",
       "online purchase",
       "օնլայն խանութ",
       "օնլայն գնում"
@@ -618,10 +710,15 @@
         "aliases": [
           "paypal"
         ]
+      },
+      {
+        "name": "Globbing",
+        "aliases": [
+          "globbing"
+        ]
       }
     ]
   },
-
   "Subscriptions": {
     "keywords": [
       "subscription",
@@ -656,8 +753,8 @@
       {
         "name": "Apple",
         "aliases": [
-          "apple com bill",
-          "apple.com bill"
+          "apple",
+          "apple com bill"
         ]
       },
       {
@@ -687,8 +784,8 @@
       {
         "name": "Microsoft 365",
         "aliases": [
-          "office 365",
-          "microsoft 365"
+          "microsoft 365",
+          "office 365"
         ]
       },
       {
@@ -737,7 +834,6 @@
       }
     ]
   },
-
   "Utilities": {
     "keywords": [
       "utility",
@@ -760,17 +856,17 @@
       {
         "name": "ENA",
         "aliases": [
-          "electric networks of armenia",
-          "ena"
+          "ena",
+          "electric networks of armenia"
         ]
       },
       {
         "name": "Gazprom Armenia",
         "aliases": [
+          "gazprom armenia",
           "gaz",
           "gazprom",
-          "գազպրոմ",
-          "gazprom armenia"
+          "գազպրոմ"
         ]
       },
       {
@@ -788,27 +884,32 @@
           "viva mts",
           "mts",
           "վիվա",
-          "մտս"
+          "մտս",
+          "vivacell",
+          "վիվասել"
         ]
       },
       {
         "name": "Ucom",
         "aliases": [
-          "ucom"
+          "ucom",
+          "յուքոմ"
         ]
       },
       {
         "name": "Team Telecom Armenia",
         "aliases": [
+          "team telecom armenia",
           "team",
           "team telecom",
-          "team telecom armenia"
+          "տելեկոմ արմենիա"
         ]
       },
       {
         "name": "Beeline",
         "aliases": [
-          "beeline"
+          "beeline",
+          "բիլայն"
         ]
       },
       {
@@ -819,7 +920,6 @@
       }
     ]
   },
-
   "Healthcare": {
     "keywords": [
       "pharmacy",
@@ -861,10 +961,16 @@
         "aliases": [
           "pharmasensor"
         ]
+      },
+      {
+        "name": "Tonus-Les",
+        "aliases": [
+          "tonus les",
+          "տոնուս լես"
+        ]
       }
     ]
   },
-
   "Insurance": {
     "keywords": [
       "insurance",
@@ -908,7 +1014,6 @@
       }
     ]
   },
-
   "Entertainment": {
     "keywords": [
       "cinema",
@@ -967,8 +1072,7 @@
       {
         "name": "Tickets.am",
         "aliases": [
-          "tickets am",
-          "tickets.am"
+          "tickets am"
         ]
       },
       {
@@ -979,7 +1083,6 @@
       }
     ]
   },
-
   "Education": {
     "keywords": [
       "autoschool",
@@ -993,8 +1096,6 @@
       "training center",
       "դասընթաց",
       "մասնակցելու համար",
-      "scholarship",
-      "կրթաթոշակ",
       "student fee",
       "քոլեջ",
       "կրթահամալիր",
@@ -1013,7 +1114,7 @@
         "aliases": [
           "ysu",
           "yerevan state university",
-          "երևանի պետական համալսարան"
+          "երեւանի պետական համալսարան"
         ]
       },
       {
@@ -1022,10 +1123,27 @@
           "aua",
           "american university of armenia"
         ]
+      },
+      {
+        "name": "Picsart Academy",
+        "aliases": [
+          "picsart academy",
+          "picsart",
+          "պիկսարտ"
+        ]
+      },
+      {
+        "name": "NPUA (ՀԱՊՀ)",
+        "aliases": [
+          "npua հապհ",
+          "հապհ",
+          "npua",
+          "polytechnic",
+          "պոլիտեխնիկ"
+        ]
       }
     ]
   },
-
   "Travel": {
     "keywords": [
       "airline",
@@ -1082,8 +1200,7 @@
       {
         "name": "Booking.com",
         "aliases": [
-          "booking com",
-          "booking.com"
+          "booking com"
         ]
       },
       {
@@ -1094,7 +1211,6 @@
       }
     ]
   },
-
   "Beauty and Personal Care": {
     "keywords": [
       "salon",
@@ -1124,13 +1240,11 @@
       {
         "name": "L'Occitane",
         "aliases": [
-          "l occitane",
-          "l'occitane"
+          "l occitane"
         ]
       }
     ]
   },
-
   "Pets": {
     "keywords": [
       "pet shop",
@@ -1145,7 +1259,6 @@
     ],
     "merchants": []
   },
-
   "Government and Fees": {
     "keywords": [
       "state tax committee",
@@ -1170,7 +1283,6 @@
     ],
     "merchants": []
   },
-
   "Loans and Credit": {
     "keywords": [
       "loan payment",
@@ -1187,11 +1299,11 @@
       "кредит",
       "погашение кредита",
       "ипотека",
-      "рассрочка"
+      "рассрочка",
+      "տոկոսի մարում"
     ],
     "merchants": []
   },
-
   "Rent": {
     "keywords": [
       "rent",
@@ -1206,7 +1318,6 @@
     ],
     "merchants": []
   },
-
   "Charity and Donations": {
     "keywords": [
       "donation",
@@ -1223,7 +1334,6 @@
     ],
     "merchants": []
   },
-
   "Fee": {
     "keywords": [
       "commission",
@@ -1240,11 +1350,15 @@
       "հաշվարկային վճար",
       "комиссия",
       "комиссионное вознаграждение",
-      "плата за обслуживание"
+      "плата за обслуживание",
+      "գանձում փոխանցման համար",
+      "գանձում փոխանցումից",
+      "գանձում կանխիկացումից",
+      "վերաթողարկում",
+      "reissue"
     ],
     "merchants": []
   },
-
   "ATM": {
     "keywords": [
       "atm",
@@ -1253,14 +1367,12 @@
       "բանկոմատ",
       "կանխիկացում",
       "կանխիկ մուտք",
-      "անձնական փոխանցում",
       "снятие наличных",
       "внесение наличных",
       "банкомат"
     ],
     "merchants": []
   },
-
   "Transfer": {
     "keywords": [
       "անձնական փոխանցում",
@@ -1268,23 +1380,24 @@
       "wire transfer",
       "փոխանցում",
       "համալրում",
-      "pension",
       "social payment",
       "card to card",
       "p2p transfer",
-      "գանձում փոխանցման",
       "перевод",
       "пополнение",
       "пенсия",
       "социальная выплата",
-      "перевод с карты на карту"
+      "перевод с карты на карту",
+      "քարտից քարտ",
+      "բանկային քարտ",
+      "հաշվի համալրում",
+      "փոխկպ"
     ],
     "merchants": [
       {
         "name": "Telcell",
         "aliases": [
           "telcell",
-          "telcell transport",
           "թել սել"
         ]
       },
@@ -1308,7 +1421,6 @@
       }
     ]
   },
-
   "Fitness and Sport": {
     "keywords": [
       "gym",
@@ -1355,7 +1467,7 @@
       {
         "name": "Gold's Gym",
         "aliases": [
-          "gold's gym",
+          "gold s gym",
           "golds gym"
         ]
       },

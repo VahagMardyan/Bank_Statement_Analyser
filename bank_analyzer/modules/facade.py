@@ -58,6 +58,12 @@ class BankAnalyzerFacade:
         classified = self._classifier.classify(raw)
         if not isinstance(classified, pd.DataFrame):
             raise TypeError("Classifier must return a DataFrame for statement files.")
+
+        # Learn from what the rules recognised in THIS statement, then give
+        # the still-uncertain rows a second pass with the updated model.
+        learn = getattr(self._classifier, "learn_from_dataframe", None)
+        if callable(learn) and learn(classified):
+            classified = self._classifier.reclassify_uncertain(classified)
         return classified
 
     def override_category(
@@ -76,6 +82,11 @@ class BankAnalyzerFacade:
         mask = out["transaction_id"] == transaction_id
         out.loc[mask, "category"] = new_category
         out.loc[mask, "method"] = "manual"
+        # Other rows with the same cleaned text get the new label too.
+        same = (out["cleaned_description"] == cleaned) & ~mask
+        out.loc[same, "category"] = new_category
+        out.loc[same, "method"] = "manual"
+        out.loc[same, "confidence"] = 1.0
         out.loc[mask, "confidence"] = 1.0
         return out
 
