@@ -1,4 +1,9 @@
+streamlit
+pandas
+numpy
+plotly
 scikit-learn
 scipy
 pdfplumber
 openpyxl
+xlrd
