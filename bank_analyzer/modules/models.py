@@ -1,13 +1,20 @@
-"""Domain models and typed result objects for the analyzer pipeline."""
+"""Domain models, typed result objects and the interfaces between layers."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
+from functools import cached_property
 from pathlib import Path
-from typing import Protocol, Union
+from typing import TYPE_CHECKING, Protocol, Union, runtime_checkable
 
 import pandas as pd
+
+if TYPE_CHECKING:  # avoid a runtime import cycle with text_utils
+    from .text_utils import TextNormalizer
+
+
+OTHER_CATEGORY = "Other"
 
 
 class TransactionType(str, Enum):
@@ -29,6 +36,12 @@ class ClassificationMethod(str, Enum):
     NONE = "None"
 
 
+# Rows labelled by these methods are trusted enough to train on.
+TRUSTED_METHODS: frozenset[str] = frozenset(
+    {ClassificationMethod.MERCHANT_RULE.value, ClassificationMethod.KEYWORD_RULE.value}
+)
+
+
 @dataclass(frozen=True)
 class ClassificationResult:
     """Outcome of classifying a single description."""
@@ -37,8 +50,45 @@ class ClassificationResult:
     confidence: float
     method: str
 
+    @classmethod
+    def unclassified(cls, confidence: float = 0.0) -> "ClassificationResult":
+        """The 'Other' result every fallback path returns."""
+        return cls(OTHER_CATEGORY, confidence, ClassificationMethod.NONE.value)
+
     def as_tuple(self) -> tuple[str, float, str]:
         return self.category, self.confidence, self.method
+
+
+@dataclass(frozen=True)
+class ClassificationRequest:
+    """Parameter Object passed along the classification chain.
+
+    Holds the raw description once and derives every view a handler may need,
+    so each handler no longer cleans or splits the text itself.
+
+    The loader appends merchant/payee/place after ``" | "``. The bank's own
+    description (``primary``) says WHAT the payment is; the payee only says WHO.
+    """
+
+    raw: str
+    normalizer: "TextNormalizer" = field(repr=False, compare=False)
+    exclude: frozenset[str] = frozenset()
+
+    PAYEE_SEPARATOR = " | "
+
+    @cached_property
+    def cleaned(self) -> str:
+        return self.normalizer.clean(self.raw)
+
+    @cached_property
+    def primary(self) -> str:
+        """Cleaned description WITHOUT the appended payee ('' if there is none)."""
+        if self.PAYEE_SEPARATOR not in self.raw:
+            return ""
+        return self.normalizer.clean(self.raw.split(self.PAYEE_SEPARATOR, 1)[0])
+
+    def allows(self, category: str) -> bool:
+        return category not in self.exclude
 
 
 @dataclass(frozen=True)
@@ -50,6 +100,10 @@ class KPIMetrics:
     net_savings: float
     transaction_count: int
 
+    @classmethod
+    def empty(cls) -> "KPIMetrics":
+        return cls(0.0, 0.0, 0.0, 0)
+
     def as_dict(self) -> dict[str, float | int]:
         return {
             "total_income": self.total_income,
@@ -59,8 +113,11 @@ class KPIMetrics:
         }
 
 
+# --------------------------------------------------------------------------
+# Interfaces (Dependency Inversion + Interface Segregation)
+# --------------------------------------------------------------------------
 class ClassifierProtocol(Protocol):
-    """Interface the UI/facade depends on (Dependency Inversion)."""
+    """Minimal interface the UI/facade needs from any classifier."""
 
     def get_categories(self) -> list[str]: ...
 
@@ -75,6 +132,21 @@ class ClassifierProtocol(Protocol):
         cleaned_description: str,
         persist: bool = True,
     ) -> None: ...
+
+
+@runtime_checkable
+class SelfTrainingClassifier(Protocol):
+    """Optional capability: classifiers that learn from what they labelled.
+
+    Kept separate from :class:`ClassifierProtocol` so a pure rule-based
+    classifier does not have to implement learning (Interface Segregation).
+    """
+
+    def learn_from_dataframe(
+        self, classified: pd.DataFrame, persist: bool = True
+    ) -> int: ...
+
+    def reclassify_uncertain(self, classified: pd.DataFrame) -> pd.DataFrame: ...
 
 
 class StatementLoaderProtocol(Protocol):

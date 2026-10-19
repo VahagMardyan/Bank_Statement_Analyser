@@ -1,9 +1,19 @@
-"""Streamlit dashboard for Bank Statement Analyzer."""
+"""Streamlit dashboard for Bank Statement Analyzer.
+UI structure:
+    DashboardApp           - page setup, sidebar, KPI row, tab container
+    DashboardTab (ABC)     - one tab; subclasses implement ``render``
+      VisualAnalyticsTab, TransactionExplorerTab, BudgetAnomaliesTab
+
+Adding a tab = writing one subclass and adding it to ``DashboardApp.tabs``.
+All data access goes through :class:`BankAnalyzerFacade`.
+"""
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from datetime import date
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
 import plotly.express as px
@@ -12,90 +22,88 @@ import streamlit as st
 from modules.constants import DEFAULT_BUDGETS
 from modules.exporters import ExportStrategyFactory
 from modules.facade import BankAnalyzerFacade
+from modules.models import KPIMetrics
 
 BASE_DIR = Path(__file__).resolve().parent
+DATE_DISPLAY_FORMAT = "%Y-%m-%d, %H:%M"
 
 
-def init_session_state() -> None:
-    defaults: dict[str, object] = {
-        "df": None,
-        "analyzer": BankAnalyzerFacade(),
-    }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+def format_dates(df: pd.DataFrame) -> pd.DataFrame:
+    """Copy of ``df`` with the date column formatted for display/export."""
+    out = df.copy()
+    if "date" in out.columns:
+        out["date"] = out["date"].dt.strftime(DATE_DISPLAY_FORMAT)
+    return out
 
 
-def render_metrics(kpis: dict[str, float | int]) -> None:
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Total Income", f"{kpis['total_income']:,.0f} AMD")
-    c2.metric("Total Expenses", f"{kpis['total_expenses']:,.0f} AMD")
-    c3.metric("Net Savings", f"{kpis['net_savings']:,.0f} AMD")
-    c4.metric("Transactions", kpis["transaction_count"])
+class DashboardTab(ABC):
+    """One tab of the dashboard."""
+
+    title: str = ""
+
+    def __init__(self, analyzer: BankAnalyzerFacade) -> None:
+        self.analyzer = analyzer
+
+    @abstractmethod
+    def render(self, df: pd.DataFrame) -> None:
+        """Draw the tab for the (already date-filtered) transactions."""
 
 
-def tab_visual_analytics(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> None:
-    expenses = df[df["transaction_type"] == "expense"]
-    summary = analyzer.analytics.category_summary(df)
+class VisualAnalyticsTab(DashboardTab):
+    title = "Visual Analytics"
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if not summary.empty:
-            fig_pie = px.pie(
-                summary,
-                names="category",
-                values="total_spend",
-                hole=0.45,
-                title="Expense Distribution by Category",
-            )
-            fig_pie.update_traces(textposition="inside", textinfo="percent+label")
-            st.plotly_chart(fig_pie, use_container_width=True)
+    def render(self, df: pd.DataFrame) -> None:
+        col1, col2 = st.columns(2)
+        with col1:
+            self._render_pie(self.analyzer.category_summary(df))
+        with col2:
+            self._render_trend(self.analyzer.monthly_trends(df))
+
+        st.subheader("Top 5 Largest Expenses")
+        top5 = self.analyzer.top_expenses(df, 5)
+        if top5.empty:
+            st.info("No expenses found.")
         else:
+            st.dataframe(
+                format_dates(top5[["date", "description", "category", "amount"]]),
+                use_container_width=True,
+                hide_index=True,
+            )
+
+    @staticmethod
+    def _render_pie(summary: pd.DataFrame) -> None:
+        if summary.empty:
             st.info("No expense data to display.")
+            return
+        fig = px.pie(
+            summary,
+            names="category",
+            values="total_spend",
+            hole=0.45,
+            title="Expense Distribution by Category",
+        )
+        fig.update_traces(textposition="inside", textinfo="percent+label")
+        st.plotly_chart(fig, use_container_width=True)
 
-    with col2:
-        trends = analyzer.analytics.monthly_trends(df)
-        if not trends.empty:
-            fig_line = px.bar(
-                trends,
-                x="period",
-                y="total_spend",
-                title="Monthly Spending Trends",
-                labels={"total_spend": "Spend (AMD)", "period": "Month"},
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-        else:
+    @staticmethod
+    def _render_trend(trends: pd.DataFrame) -> None:
+        if trends.empty:
             st.info("No trend data available.")
+            return
+        fig = px.bar(
+            trends,
+            x="period",
+            y="total_spend",
+            title="Monthly Spending Trends",
+            labels={"total_spend": "Spend (AMD)", "period": "Month"},
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
-    st.subheader("Top 5 Largest Expenses")
-    if not expenses.empty:
-        top5 = expenses.nlargest(5, "amount")[
-            ["date", "description", "category", "amount"]
-        ].copy()
-        top5["date"] = top5["date"].dt.strftime("%Y-%m-%d, %H:%M")
-        st.dataframe(top5, use_container_width=True, hide_index=True)
-    else:
-        st.info("No expenses found.")
 
+class TransactionExplorerTab(DashboardTab):
+    title = "Transaction Explorer"
 
-def tab_transaction_explorer(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> None:
-    categories = ["All"] + sorted(df["category"].dropna().unique().tolist())
-    col1, col2 = st.columns([1, 2])
-    with col1:
-        selected_cat = st.selectbox("Filter by Category", categories)
-    with col2:
-        search = st.text_input("Search Description", "")
-
-    filtered = df.copy()
-    if selected_cat != "All":
-        filtered = filtered[filtered["category"] == selected_cat]
-    if search.strip():
-        filtered = filtered[
-            filtered["description"].str.contains(search, case=False, na=False)
-            | filtered["cleaned_description"].str.contains(search, case=False, na=False)
-        ]
-
-    available_cols = [
+    COLUMNS = [
         "transaction_id",
         "date",
         "description",
@@ -105,59 +113,75 @@ def tab_transaction_explorer(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> 
         "confidence",
         "method",
     ]
+    DEFAULT_COLUMNS = COLUMNS[:-2]
 
-    selected_cols = st.multiselect(
-        "Select Columns to Display & Export",
-        options=available_cols,
-        default=available_cols[0 : len(available_cols) - 2],
-    )
+    def render(self, df: pd.DataFrame) -> None:
+        filtered = self._filter(df)
+        selected_cols = st.multiselect(
+            "Select Columns to Display & Export",
+            options=self.COLUMNS,
+            default=self.DEFAULT_COLUMNS,
+        )
+        if not selected_cols:
+            st.warning("Please select at least one column to display and export.")
+            return
 
-    if not selected_cols:
-        st.warning("Please select at least one column to display and export.")
-        return
+        display_df = format_dates(filtered)
+        st.dataframe(display_df[selected_cols], use_container_width=True, hide_index=True)
+        if not display_df.empty:
+            self._render_export(display_df, selected_cols)
 
-    export_df = filtered.copy()
-    if "date" in export_df.columns:
-        export_df["date"] = export_df["date"].dt.strftime("%Y-%m-%d, %H:%M")
+        st.divider()
+        st.subheader("Manual Category Override")
+        if not filtered.empty:
+            self._render_override(filtered)
 
-    st.dataframe(
-        export_df[selected_cols],
-        use_container_width=True,
-        hide_index=True,
-    )
+    @staticmethod
+    def _filter(df: pd.DataFrame) -> pd.DataFrame:
+        categories = ["All"] + sorted(df["category"].dropna().unique().tolist())
+        col1, col2 = st.columns([1, 2])
+        with col1:
+            selected_cat = st.selectbox("Filter by Category", categories)
+        with col2:
+            search = st.text_input("Search Description", "")
 
-    if not export_df.empty:
+        filtered = df
+        if selected_cat != "All":
+            filtered = filtered[filtered["category"] == selected_cat]
+        if search.strip():
+            filtered = filtered[
+                filtered["description"].str.contains(search, case=False, na=False, regex=False)
+                | filtered["cleaned_description"].str.contains(
+                    search, case=False, na=False, regex=False
+                )
+            ]
+        return filtered.copy()
+
+    @staticmethod
+    def _render_export(display_df: pd.DataFrame, columns: list[str]) -> None:
         col_fmt, col_btn = st.columns([1, 2], vertical_alignment="bottom")
         with col_fmt:
             export_format = st.selectbox("Export Format", ExportStrategyFactory.labels())
         with col_btn:
-            st.write("")
             strategy = ExportStrategyFactory.create(export_format)
-            file_bytes = strategy.export(export_df, columns=selected_cols)
-            file_name = f"transactions_export{strategy.file_extension}"
-
             st.download_button(
                 label=f"📥 Download as {export_format}",
-                data=file_bytes,
-                file_name=file_name,
+                data=strategy.export(display_df, columns=columns),
+                file_name=f"transactions_export{strategy.file_extension}",
                 mime=strategy.mime_type,
                 use_container_width=True,
             )
 
-    st.divider()
-    st.subheader("Manual Category Override")
-    if not filtered.empty:
+    def _render_override(self, filtered: pd.DataFrame) -> None:
+        labels = dict(zip(filtered["transaction_id"], filtered["description"].astype(str)))
         txn_id = st.selectbox(
             "Transaction ID",
-            filtered["transaction_id"].tolist(),
-            format_func=lambda x: f"{x} - {filtered.loc[filtered['transaction_id'] == x, 'description'].iloc[0][:50]}",
+            list(labels),
+            format_func=lambda x: f"{x} - {labels[x][:50]}",
         )
-        new_category = st.selectbox(
-            "New Category",
-            analyzer.get_categories(),
-        )
+        new_category = st.selectbox("New Category", self.analyzer.get_categories())
         if st.button("Apply Override"):
-            st.session_state.df = analyzer.override_category(
+            st.session_state.df = self.analyzer.override_category(
                 st.session_state.df, txn_id, new_category
             )
             st.success(
@@ -166,110 +190,156 @@ def tab_transaction_explorer(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> 
             st.rerun()
 
 
-def tab_budget_anomalies(df: pd.DataFrame, analyzer: BankAnalyzerFacade) -> None:
-    st.subheader("Budget Limits")
-    budget_input: dict[str, float] = {}
-    cols = st.columns(3)
-    for idx, (cat, default) in enumerate(DEFAULT_BUDGETS.items()):
-        with cols[idx % 3]:
-            budget_input[cat] = st.number_input(
-                f"{cat} Budget (AMD)",
-                min_value=0,
-                value=default,
-                step=1000,
-                key=f"budget_{cat}",
-            )
+class BudgetAnomaliesTab(DashboardTab):
+    title = "Budget & Anomalies"
 
-    budget_report = analyzer.analytics.check_budget_limits(df, budget_input)
-    if not budget_report.empty:
-        for _, row in budget_report.iterrows():
-            pct = min(row["pct_used"], 100)
+    def render(self, df: pd.DataFrame) -> None:
+        st.subheader("Budget Limits")
+        self._render_budgets(df, self._budget_inputs())
+        st.divider()
+        st.subheader("Anomaly Detection")
+        self._render_anomalies(df)
+
+    @staticmethod
+    def _budget_inputs() -> dict[str, float]:
+        budgets: dict[str, float] = {}
+        cols = st.columns(3)
+        for idx, (cat, default) in enumerate(DEFAULT_BUDGETS.items()):
+            with cols[idx % 3]:
+                budgets[cat] = st.number_input(
+                    f"{cat} Budget (AMD)",
+                    min_value=0,
+                    value=default,
+                    step=1000,
+                    key=f"budget_{cat}",
+                )
+        return budgets
+
+    def _render_budgets(self, df: pd.DataFrame, budgets: dict[str, float]) -> None:
+        report = self.analyzer.check_budget_limits(df, budgets)
+        if report.empty:
+            return
+        for _, row in report.iterrows():
             st.write(f"**{row['category']}** — {row['actual']:,.0f} / {row['budget']:,.0f} AMD")
-            st.progress(min(pct / 100, 1.0))
+            st.progress(min(row["pct_used"], 100) / 100)
             if row["over_budget"]:
                 st.warning(f"Over budget by {abs(row['remaining']):,.0f} AMD")
+        st.dataframe(report, use_container_width=True, hide_index=True)
 
-        st.dataframe(budget_report, use_container_width=True, hide_index=True)
-
-    st.divider()
-    st.subheader("Anomaly Detection")
-    threshold = st.slider("Z-Score Threshold", 1.5, 4.0, 2.5, 0.1)
-    anomalies = analyzer.analytics.detect_anomalies(df, threshold_std=threshold)
-    if anomalies.empty:
-        st.info("No anomalies detected at this threshold.")
-    else:
-        display = anomalies[
-            ["date", "description", "category", "amount", "z_score"]
-        ].copy()
-        display["date"] = display["date"].dt.strftime("%Y-%m-%d, %H:%M")
-        st.dataframe(display, use_container_width=True, hide_index=True)
+    def _render_anomalies(self, df: pd.DataFrame) -> None:
+        threshold = st.slider("Z-Score Threshold", 1.5, 4.0, 2.5, 0.1)
+        anomalies = self.analyzer.detect_anomalies(df, threshold_std=threshold)
+        if anomalies.empty:
+            st.info("No anomalies detected at this threshold.")
+            return
+        st.dataframe(
+            format_dates(anomalies[["date", "description", "category", "amount", "z_score"]]),
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
-def main() -> None:
-    st.set_page_config(
-        page_title="Bank Statement Analyzer",
-        page_icon="🏦",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
-    init_session_state()
-    analyzer: BankAnalyzerFacade = st.session_state.analyzer
+class DashboardApp:
+    """Top-level page: sidebar, KPIs and the tab container."""
 
-    st.title("🏦 Bank Statement Analyzer")
-    st.caption(
-        "Parse, categorize, and visualize bank statements from Armenian and international banks."
+    tab_classes: tuple[type[DashboardTab], ...] = (
+        VisualAnalyticsTab,
+        TransactionExplorerTab,
+        BudgetAnomaliesTab,
     )
 
-    with st.sidebar:
+    def __init__(self) -> None:
+        if "analyzer" not in st.session_state:
+            st.session_state.analyzer = BankAnalyzerFacade()
+        if "df" not in st.session_state:
+            st.session_state.df = None
+        self.analyzer: BankAnalyzerFacade = st.session_state.analyzer
+        self.tabs = [cls(self.analyzer) for cls in self.tab_classes]
+
+    def run(self) -> None:
+        st.set_page_config(
+            page_title="Bank Statement Analyzer",
+            page_icon="🏦",
+            layout="wide",
+            initial_sidebar_state="expanded",
+        )
+        st.title("🏦 Bank Statement Analyzer")
+        st.caption(
+            "Parse, categorize, and visualize bank statements from Armenian and "
+            "international banks."
+        )
+
+        with st.sidebar:
+            df = self._render_sidebar()
+
+        if df is None or df.empty:
+            self._render_welcome()
+            return
+
+        self._render_metrics(self.analyzer.compute_kpis(df))
+        for tab, container in zip(self.tabs, st.tabs([t.title for t in self.tabs])):
+            with container:
+                tab.render(df)
+
+    # --------------------------------------------------------------- sidebar
+    def _render_sidebar(self) -> Optional[pd.DataFrame]:
         st.header("Configuration")
         uploaded = st.file_uploader(
             "Upload Bank Statement (CSV / Excel / PDF)",
             type=["csv", "xlsx", "xls", "pdf"],
         )
-        bank_labels = analyzer.bank_labels()
-        banks = ["auto_detect"] + analyzer.list_banks()
+        bank_labels = self.analyzer.bank_labels()
         selected_bank = st.selectbox(
             "Bank",
-            banks,
+            ["auto_detect"] + self.analyzer.list_banks(),
             format_func=lambda x: bank_labels.get(x, x),
         )
+        if uploaded is not None and st.button("Load & Analyze", type="primary"):
+            self._load(uploaded, selected_bank)
 
-        if uploaded is not None:
-            if st.button("Load & Analyze", type="primary"):
-                file_ext = Path(uploaded.name).suffix.lower()
-                tmp_path = BASE_DIR / "data" / f"_upload{file_ext}"
-                tmp_path.parent.mkdir(parents=True, exist_ok=True)
-                tmp_path.write_bytes(uploaded.getvalue())
-                try:
-                    classified = analyzer.load_and_classify(
-                        tmp_path, bank_key=selected_bank
-                    )
-                    st.session_state.df = classified
-                    st.success(f"Loaded {len(classified)} transactions.")
-                except Exception as exc:
-                    st.error(f"Failed to load statement: {exc}")
+        df: Optional[pd.DataFrame] = st.session_state.df
+        if df is None or df.empty:
+            return None
+        return self._date_filter(df)
 
-        df: pd.DataFrame | None = st.session_state.df
-        if df is not None and not df.empty:
-            min_date = df["date"].min().date()
-            max_date = df["date"].max().date()
-            date_range = st.date_input(
-                "Date Range",
-                value=(min_date, max_date),
-                min_value=min_date,
-                max_value=max_date,
-            )
-            if isinstance(date_range, tuple) and len(date_range) == 2:
-                start, end = date_range
-                if isinstance(start, date) and isinstance(end, date):
-                    df = analyzer.apply_date_filter(df, start, end)
-        else:
-            df = None
+    def _load(self, uploaded, bank_key: str) -> None:
+        tmp_path = BASE_DIR / "data" / f"_upload{Path(uploaded.name).suffix.lower()}"
+        tmp_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path.write_bytes(uploaded.getvalue())
+        try:
+            classified = self.analyzer.load_and_classify(tmp_path, bank_key=bank_key)
+        except Exception as exc:  # show any parsing problem to the user
+            st.error(f"Failed to load statement: {exc}")
+            return
+        st.session_state.df = classified
+        st.success(f"Loaded {len(classified)} transactions.")
 
-    if df is None or df.empty:
-        st.info(
-            "Upload a statement file (CSV, XLSX, XLS, PDF) using the sidebar to get started."
+    def _date_filter(self, df: pd.DataFrame) -> pd.DataFrame:
+        min_date, max_date = df["date"].min().date(), df["date"].max().date()
+        date_range = st.date_input(
+            "Date Range",
+            value=(min_date, max_date),
+            min_value=min_date,
+            max_value=max_date,
         )
+        if isinstance(date_range, tuple) and len(date_range) == 2:
+            start, end = date_range
+            if isinstance(start, date) and isinstance(end, date):
+                return self.analyzer.apply_date_filter(df, start, end)
+        return df
+
+    # ------------------------------------------------------------- sections
+    @staticmethod
+    def _render_metrics(kpis: KPIMetrics) -> None:
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Total Income", f"{kpis.total_income:,.0f} AMD")
+        c2.metric("Total Expenses", f"{kpis.total_expenses:,.0f} AMD")
+        c3.metric("Net Savings", f"{kpis.net_savings:,.0f} AMD")
+        c4.metric("Transactions", kpis.transaction_count)
+
+    @staticmethod
+    def _render_welcome() -> None:
+        st.info("Upload a statement file (CSV, XLSX, XLS, PDF) using the sidebar to get started.")
         st.markdown(
             """
             **Supported features:**
@@ -279,19 +349,10 @@ def main() -> None:
             - Interactive charts, budget tracking, and export functionality
             """
         )
-        return
 
-    render_metrics(analyzer.compute_kpis(df).as_dict())
 
-    tab1, tab2, tab3 = st.tabs(
-        ["Visual Analytics", "Transaction Explorer", "Budget & Anomalies"]
-    )
-    with tab1:
-        tab_visual_analytics(df, analyzer)
-    with tab2:
-        tab_transaction_explorer(df, analyzer)
-    with tab3:
-        tab_budget_anomalies(df, analyzer)
+def main() -> None:
+    DashboardApp().run()
 
 
 if __name__ == "__main__":

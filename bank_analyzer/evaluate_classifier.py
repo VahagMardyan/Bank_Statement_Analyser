@@ -25,8 +25,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from modules.classification_handlers import RuleMatcher
 from modules.classifier import TransactionClassifier
 from modules.ml_model import LearnedCategoryModel
+from modules.models import ClassificationMethod
+from modules.rules import InMemoryRuleRepository, JsonRuleRepository
 from modules.text_utils import ml_text
 
 BASE = Path(__file__).resolve().parent
@@ -71,13 +74,12 @@ def load_labelled(path: Path) -> pd.DataFrame:
 
 
 def make_classifier(tmp: Path, min_prob: float, min_margin: float) -> TransactionClassifier:
-    # Work on a throw-away copy of the rules and an empty training store.
-    rules_copy = tmp / "rules.json"
-    rules_copy.write_text(RULES.read_text(encoding="utf-8"), encoding="utf-8")
+    # Fresh in-memory copy of the rules (never saved) and an empty training store.
+    repository = InMemoryRuleRepository(JsonRuleRepository(RULES).load())
     model = LearnedCategoryModel(
         store_path=tmp / "train.csv", min_probability=min_prob, min_margin=min_margin
     )
-    return TransactionClassifier(rules_path=rules_copy, model=model)
+    return TransactionClassifier(model=model, repository=repository)
 
 
 def strip_rules_matching(clf: TransactionClassifier, texts: pd.Series) -> int:
@@ -86,25 +88,11 @@ def strip_rules_matching(clf: TransactionClassifier, texts: pd.Series) -> int:
     Simulates merchants the JSON has never heard of, so the test measures the
     ML fallback instead of the rules. Returns how many rule entries were removed.
     """
-    cleaned = [clf._clean_text(t) for t in texts]
-    hit = lambda alias: any(clf._index.alias_matches(alias, t) for t in cleaned)
-    removed = 0
-    for rule in clf.rules.values():
-        before = len(rule["keywords"])
-        rule["keywords"] = [k for k in rule["keywords"] if not hit(k)]
-        removed += before - len(rule["keywords"])
-        kept = []
-        for m in rule["merchants"]:
-            if any(hit(a) for a in m["aliases"]):
-                removed += 1
-            else:
-                kept.append(m)
-        rule["merchants"] = kept
-    clf._index.rebuild()
-    if clf.model is not None:
-        clf.model.set_seed_from_rules(clf.rules)
-        clf.model.fit()
-    return removed
+    cleaned = [clf.normalizer.clean(t) for t in texts]
+    # The RuleSet notifies the matcher, fuzzy index and model after pruning.
+    return clf.rules.prune(
+        lambda alias: any(RuleMatcher.alias_matches(alias, t) for t in cleaned)
+    )
 
 
 def run_cv_multi(
@@ -232,7 +220,7 @@ def main() -> None:
         results = run_cv_multi(df, args.folds, grid, True, unseen=True)
         rows = []
         for (p, m), r in results.items():
-            ml = r[r["method"] == "ML model"]
+            ml = r[r["method"] == ClassificationMethod.ML_MODEL.value]
             rows.append({
                 "min_probability": p, "min_margin": m,
                 "accuracy": (r["category"] == r["true_category"]).mean(),
