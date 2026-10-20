@@ -64,9 +64,7 @@ class Prediction:
     margin: float  # gap between best and second-best class
 
 
-# --------------------------------------------------------------------------
 # Repository for user training rows
-# --------------------------------------------------------------------------
 class TrainingExampleStore:
     """Persists rule-labelled rows and manual overrides as CSV."""
 
@@ -91,9 +89,7 @@ class TrainingExampleStore:
             logger.warning("Could not save training store %s: %s", self.path, exc)
 
 
-# --------------------------------------------------------------------------
 # Model
-# --------------------------------------------------------------------------
 class LearnedCategoryModel:
     """Char + word TF-IDF features fed to a class-balanced logistic regression."""
 
@@ -120,7 +116,7 @@ class LearnedCategoryModel:
     def store_path(self) -> Path:
         return self._store.path
 
-    # -------------------------------------------------------- RuleSet observer
+    # RuleSet observer
     def on_rules_changed(self, rules: "RuleSet") -> None:
         """Rules changed -> refresh the seed rows and retrain."""
         self.set_seed_from_rules(rules)
@@ -133,7 +129,7 @@ class LearnedCategoryModel:
             for category, text in rules.iter_rule_texts()
         ]
 
-    # ------------------------------------------------------------------ data
+    # data
     def add_examples(
         self,
         examples: Iterable[tuple[str, str]],
@@ -180,7 +176,7 @@ class LearnedCategoryModel:
         frame = pd.concat([seed, self.user_rows], ignore_index=True)
         return frame[frame["text"].str.len() > 0].reset_index(drop=True)
 
-    # ----------------------------------------------------------------- model
+    # model
     def _features(self, texts: list[str], fit: bool = False) -> Any:
         if self._char_vec is None or self._word_vec is None:
             raise RuntimeError("Model is not fitted.")

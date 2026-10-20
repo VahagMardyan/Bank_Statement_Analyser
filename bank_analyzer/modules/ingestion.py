@@ -1,9 +1,6 @@
 """Turning a statement file into the unified transaction schema.
 
 Collaborators (each a small single-purpose class):
-    BankConfigRegistry  - bank_configs.json: names, column hints, date format,
-                          detection keywords
-    BankDetector        - guesses the bank from a reader's preview
     ColumnResolver      - finds the date / description columns by header hints
     AmountParser        - debit+credit or signed-amount -> amount + type
     DateParser          - DD.MM vs ISO dates without silent day/month swaps
@@ -11,11 +8,13 @@ Collaborators (each a small single-purpose class):
 
 :class:`StatementLoaderTemplate` fixes the order of the steps in ``load()``
 (Template Method); :class:`BankStatementLoader` supplies the steps.
+
+Columns are found by the header hints in ``COLUMN_HINTS`` (Armenian, English,
+Russian), so no per-bank configuration is needed.
 """
 
 from __future__ import annotations
 
-import json
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -34,11 +33,8 @@ from .readers import (
 )
 from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 
-AUTO_DETECT = "auto_detect"
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent.parent / "config" / "bank_configs.json"
-
-# Header hints used when a bank's config has no ``column_mapping`` entry.
-DEFAULT_COLUMN_HINTS: dict[str, list[str]] = {
+# Header words that identify each column (exact match first, then substring).
+COLUMN_HINTS: dict[str, list[str]] = {
     "date": ["ամսաթիվ", "date", "trans date", "ձևակերպման ամսաթիվ", "գործարքի ամսաթիվ"],
     "debit": ["debit", "դեբետ", "ելք", "ելքեր", "out", "withdrawal"],
     "credit": ["credit", "կրեդիտ", "մուտք", "մուտքեր", "in", "deposit"],
@@ -71,99 +67,11 @@ EMPTY_CELL_VALUES = frozenset({"nan", "կիրառելի չէ"})
 
 BALANCE_ROW_KEYWORDS = ("մնացորդ", "balance", "opening balance", "closing balance", "օրվա վերջին")
 
-# Order matters: the first bank whose keyword appears wins.
-DEFAULT_DETECTION_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "ameriabank": ("ameriabank", "ameria", "ամերիա"),
-    "evocabank": ("evocabank", "evoca"),
-    "acba": ("acba", "ակբա"),
-    "inecobank": ("ineco", "ինեկո"),
-}
-
 DATE_LIKE = re.compile(r"\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}")
 DATE_CAPTURE = re.compile(r"(\d{1,4}[./\-]\d{1,2}[./\-]\d{1,4}(?:[,\s]+\d{1,2}:\d{2}(?::\d{2})?)?)")
 TEXT_LIKE = r"[A-Za-zԱ-ֆ]{2,}"
 
-
-# --------------------------------------------------------------------------
-# Configuration
-# --------------------------------------------------------------------------
-class BankConfigRegistry:
-    """Read-only access to ``bank_configs.json`` (``{"banks": {key: {...}}}``).
-
-    Per bank: ``display_name``, ``column_mapping`` ({field: [hints]}),
-    ``date_format`` and optional ``detect_keywords`` ([...]).
-    """
-
-    def __init__(self, path: Optional[str | Path] = None) -> None:
-        self.path = Path(path) if path else DEFAULT_CONFIG_PATH
-        self._banks: dict[str, Any] = self._load()
-
-    def _load(self) -> dict[str, Any]:
-        if not self.path.exists():
-            return {}
-        with open(self.path, encoding="utf-8") as fh:
-            data = json.load(fh)
-        banks = data.get("banks", {}) if isinstance(data, dict) else {}
-        return {k: v for k, v in banks.items() if isinstance(v, dict)}
-
-    def bank_keys(self) -> list[str]:
-        return [k for k in self._banks if k != AUTO_DETECT]
-
-    def config(self, bank_key: str) -> dict[str, Any]:
-        return self._banks.get(bank_key, {})
-
-    def display_name(self, bank_key: str) -> str:
-        return str(self.config(bank_key).get("display_name", bank_key))
-
-    def column_hints(self, bank_key: str, field: str) -> list[str]:
-        mapping = self.config(bank_key).get("column_mapping", {})
-        return list(mapping.get(field, DEFAULT_COLUMN_HINTS.get(field, [])))
-
-    def date_format(self, bank_key: str) -> Optional[str]:
-        return self.config(bank_key).get("date_format")
-
-    def detection_keywords(self) -> dict[str, tuple[str, ...]]:
-        """Built-in keywords, overridden/extended by ``detect_keywords`` in config."""
-        keywords = dict(DEFAULT_DETECTION_KEYWORDS)
-        for key, cfg in self._banks.items():
-            custom = cfg.get("detect_keywords")
-            if key != AUTO_DETECT and isinstance(custom, list) and custom:
-                keywords[key] = tuple(str(k).lower() for k in custom)
-        return keywords
-
-
-# --------------------------------------------------------------------------
-# Bank detection
-# --------------------------------------------------------------------------
-class BankDetector:
-    """Guesses the bank from the first rows of a statement."""
-
-    def __init__(
-        self, registry: BankConfigRegistry, reader_factory: StatementReaderFactory
-    ) -> None:
-        self._keywords = registry.detection_keywords()
-        self._readers = reader_factory
-
-    def detect(self, path: Path) -> str:
-        try:
-            preview = self._readers.create(path).preview(path)
-        except (OSError, ValueError):
-            return AUTO_DETECT
-        return self.detect_from_frame(preview)
-
-    def detect_from_frame(self, raw_df: pd.DataFrame) -> str:
-        text = " ".join(
-            str(v).lower() for v in raw_df.to_numpy().ravel() if pd.notna(v)
-        )
-        for bank, words in self._keywords.items():
-            if any(w in text for w in words):
-                return bank
-        return AUTO_DETECT
-
-
-# --------------------------------------------------------------------------
 # Column / value parsing
-# --------------------------------------------------------------------------
 class ColumnResolver:
     """Finds a column by header hints: exact match first, then substring."""
 
@@ -286,15 +194,10 @@ class DateParser:
     ISO dates or drops them as NaT.
     """
 
-    def parse(self, series: pd.Series, date_format: Optional[str] = None) -> pd.Series:
+    def parse(self, series: pd.Series) -> pd.Series:
         if pd.api.types.is_datetime64_any_dtype(series):
             return series
         cleaned = series.astype(str).str.extract(DATE_CAPTURE)[0]
-
-        if date_format:
-            parsed = pd.to_datetime(cleaned, format=date_format, errors="coerce")
-            if parsed.notna().sum() > 0:
-                return parsed
 
         iso = cleaned.str.match(r"^\d{4}[./\-]", na=False)
         result = pd.Series(pd.NaT, index=cleaned.index, dtype="datetime64[ns]")
@@ -358,10 +261,7 @@ class DescriptionBuilder:
             return desc
         return f"{desc}{cls.SEPARATOR}{extra}" if desc else extra
 
-
-# --------------------------------------------------------------------------
 # Loader (Template Method)
-# --------------------------------------------------------------------------
 class StatementLoaderTemplate(ABC):
     """Fixed loading pipeline; subclasses implement the individual steps."""
 
@@ -369,30 +269,21 @@ class StatementLoaderTemplate(ABC):
         "date", "description", "cleaned_description", "amount", "transaction_type",
     )
 
-    def load(
-        self,
-        file_path: str | Path,
-        bank_key: Optional[str] = None,
-        encoding: Optional[str] = None,
-    ) -> pd.DataFrame:
-        """Template method: validate -> resolve bank -> read -> standardize -> filter."""
+    def load(self, file_path: str | Path, encoding: Optional[str] = None) -> pd.DataFrame:
+        """Template method: validate -> read -> standardize -> filter -> finalize."""
         path = Path(file_path)
         if not path.exists():
             raise FileNotFoundError(f"File not found: {path}")
-        bank = self.resolve_bank(path, bank_key)
         raw = self.read_raw(path, encoding)
-        rows = self.standardize(raw, bank)
+        rows = self.standardize(raw)
         rows = self.drop_invalid_rows(rows)
         return self.finalize(rows)
-
-    @abstractmethod
-    def resolve_bank(self, path: Path, bank_key: Optional[str]) -> str: ...
 
     @abstractmethod
     def read_raw(self, path: Path, encoding: Optional[str]) -> pd.DataFrame: ...
 
     @abstractmethod
-    def standardize(self, raw: pd.DataFrame, bank: str) -> pd.DataFrame: ...
+    def standardize(self, raw: pd.DataFrame) -> pd.DataFrame: ...
 
     @abstractmethod
     def drop_invalid_rows(self, rows: pd.DataFrame) -> pd.DataFrame: ...
@@ -403,59 +294,31 @@ class StatementLoaderTemplate(ABC):
         rows["transaction_id"] = rows.index.astype(str)
         return rows[[*self.STANDARD_COLUMNS, "transaction_id"]]
 
-
 class BankStatementLoader(StatementLoaderTemplate):
     """Loads CSV / Excel / PDF statements from Armenian banks."""
 
     def __init__(
         self,
-        config_path: Optional[str | Path] = None,
         reader_factory: Optional[StatementReaderFactory] = None,
         *,
-        registry: Optional[BankConfigRegistry] = None,
-        detector: Optional[BankDetector] = None,
         normalizer: TextNormalizer = DEFAULT_NORMALIZER,
     ) -> None:
-        self._registry = registry or BankConfigRegistry(config_path)
         self._readers = reader_factory or StatementReaderFactory()
-        self._detector = detector or BankDetector(self._registry, self._readers)
         self._normalizer = normalizer
         self._columns = ColumnResolver()
         self._amounts = AmountParser(self._columns)
         self._dates = DateParser()
         self._descriptions = DescriptionBuilder(self._columns)
 
-    # -------------------------------------------------------- bank metadata
-    def list_banks(self) -> list[str]:
-        return self._registry.bank_keys()
-
-    def bank_display_name(self, bank_key: str) -> str:
-        return self._registry.display_name(bank_key)
-
-    def bank_labels(self) -> dict[str, str]:
-        return {
-            AUTO_DETECT: "Auto Detect",
-            **{key: self.bank_display_name(key) for key in self.list_banks()},
-        }
-
-    def detect_bank(self, file_path: str | Path) -> str:
-        return self._detector.detect(Path(file_path))
-
     def clean_description(self, text: str) -> str:
         return self._normalizer.clean(text)
 
-    # ------------------------------------------------------- template steps
-    def resolve_bank(self, path: Path, bank_key: Optional[str]) -> str:
-        if bank_key and bank_key != AUTO_DETECT:
-            return bank_key
-        return self.detect_bank(path)
-
+    # template steps
     def read_raw(self, path: Path, encoding: Optional[str]) -> pd.DataFrame:
         return self._readers.create(path).read(path, encoding)
 
-    def standardize(self, raw: pd.DataFrame, bank: str) -> pd.DataFrame:
-        def hints(field: str) -> list[str]:
-            return self._registry.column_hints(bank, field)
+    def standardize(self, raw: pd.DataFrame) -> pd.DataFrame:
+        hints = COLUMN_HINTS.__getitem__
 
         date_col = self._columns.resolve_date(raw, hints("date"))
         amounts = self._amounts.parse(
@@ -468,7 +331,7 @@ class BankStatementLoader(StatementLoaderTemplate):
 
         return pd.DataFrame(
             {
-                "date": self._dates.parse(raw[date_col], self._registry.date_format(bank)),
+                "date": self._dates.parse(raw[date_col]),
                 "description": descriptions,
                 "cleaned_description": descriptions.map(self._normalizer.clean),
                 "amount": pd.to_numeric(amounts.amount, errors="coerce"),

@@ -21,12 +21,12 @@ from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 
 logger = logging.getLogger(__name__)
 
+# Old files used "Transport | Տրանսպորտ" keys; only the English part is the key.
+LABEL_SEPARATOR = " | "
+
 DEFAULT_RULES_PATH = Path(__file__).resolve().parent.parent / "config" / "category_rules.json"
 
-
-# --------------------------------------------------------------------------
 # Domain objects
-# --------------------------------------------------------------------------
 @dataclass
 class Merchant:
     """A named merchant and the (already normalized) aliases that identify it."""
@@ -40,7 +40,11 @@ class Merchant:
 
 @dataclass
 class CategoryRule:
-    """Everything that maps text to one category."""
+    """Everything that maps text to one category.
+
+    The category KEY (e.g. "Transport") is what the code, budgets and the
+    training data use. Display names live in ``locales/<language>.json``.
+    """
 
     keywords: list[str] = field(default_factory=list)
     merchants: list[Merchant] = field(default_factory=list)
@@ -112,7 +116,7 @@ class RuleSet:
     def to_dict(self) -> dict[str, dict[str, Any]]:
         return {category: rule.to_dict() for category, rule in self._rules.items()}
 
-    # -------------------------------------------------------------- commands
+    # commands
     def add_keyword(self, category: str, keyword: str) -> bool:
         """Add a keyword; returns True (and notifies) only if it was new."""
         if not keyword:
@@ -144,10 +148,7 @@ class RuleSet:
             self._notify()
         return removed
 
-
-# --------------------------------------------------------------------------
 # Repository
-# --------------------------------------------------------------------------
 class RuleRepository(ABC):
     """Where rules come from and go back to."""
 
@@ -181,7 +182,7 @@ class JsonRuleRepository(RuleRepository):
         self.path = Path(path) if path else DEFAULT_RULES_PATH
         self._normalizer = normalizer
 
-    # ------------------------------------------------------------------ load
+    # load
     def load(self) -> RuleSet:
         if not self.path.exists():
             return RuleSet()
@@ -189,7 +190,14 @@ class JsonRuleRepository(RuleRepository):
             data = json.load(fh)
         if not isinstance(data, dict):
             raise ValueError(f"{self.path.name} must contain a JSON object.")
-        return RuleSet({str(cat): self._parse_rule(raw) for cat, raw in data.items()})
+        return RuleSet(
+            {self._key(str(raw_key)): self._parse_rule(raw) for raw_key, raw in data.items()}
+        )
+
+    @staticmethod
+    def _key(raw_key: str) -> str:
+        """Accept "Transport | Տրանսպորտ" keys too: the key is the English part."""
+        return raw_key.split(LABEL_SEPARATOR, 1)[0].strip()
 
     def _norm(self, value: Any) -> str:
         return self._normalizer.clean(str(value))
@@ -234,7 +242,7 @@ class JsonRuleRepository(RuleRepository):
     def _unique(values: Any) -> list[str]:
         return list(dict.fromkeys(v for v in values if v))
 
-    # ------------------------------------------------------------------ save
+    # save
     def save(self, rules: RuleSet) -> None:
         try:
             self.path.parent.mkdir(parents=True, exist_ok=True)

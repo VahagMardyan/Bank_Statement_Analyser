@@ -1,41 +1,72 @@
 classDiagram
-    class StatementLoaderProtocol {
-        <<interface>>
-        + list_banks() list
-        + bank_display_name(bank_key) string
-        + bank_labels() dict
-        + load(file_path, bank_key, encoding) DataFrame
-    }
-
-    class ClassifierProtocol {
-        <<interface>>
-        + get_categories() list
-        + classify(target)
-        + manual_override(transaction_id, new_category, cleaned_description)
-    }
-
-    class KPIMetrics {
-        + float total_income
-        + float total_expenses
-        + float net_savings
-        + int transaction_count
-        + as_dict() dict
-    }
+    direction LR
 
     class BankAnalyzerFacade {
         - StatementLoaderProtocol _loader
         - ClassifierProtocol _classifier
         - AnalyticsService _analytics
-        + list_banks() list
-        + bank_labels() dict
-        + load_and_classify(file_path, bank_key) DataFrame
-        + override_category(df, transaction_id, new_category) DataFrame
+        + load_and_classify(file_path) DataFrame
         + get_categories() list
-        + apply_date_filter(df, start, end) DataFrame
+        + override_category(df, transaction_id, new_category) DataFrame
+        + apply_date_filter(df, start, end)$ DataFrame
         + compute_kpis(df) KPIMetrics
+        + category_summary(df) DataFrame
+        + monthly_trends(df) DataFrame
+        + top_expenses(df, n) DataFrame
+        + check_budget_limits(df, budgets) DataFrame
+        + detect_anomalies(df, threshold_std, detector) DataFrame
+    }
+
+    class StatementLoaderProtocol {
+        <<interface>>
+        + load(file_path, encoding) DataFrame
+    }
+
+    class ClassifierProtocol {
+        <<interface>>
+        + get_categories() list
+        + classify(target) str or DataFrame
+        + manual_override(transaction_id, new_category, cleaned_description, persist)
+    }
+
+    class SelfTrainingClassifier {
+        <<interface>>
+        + learn_from_dataframe(classified, persist) int
+        + reclassify_uncertain(classified) DataFrame
+    }
+
+    class BankStatementLoader
+    class TransactionClassifier
+    class AnalyticsService
+    class KPIMetrics {
+        <<dataclass>>
+    }
+
+    class TransactionType {
+        <<enumeration>>
+        INCOME
+        EXPENSE
+    }
+    class ClassificationMethod {
+        <<enumeration>>
+        MERCHANT_RULE
+        KEYWORD_RULE
+        NAME_HEURISTIC
+        ML_MODEL
+        VECTOR
+        MANUAL
+        NONE
     }
 
     BankAnalyzerFacade --> StatementLoaderProtocol : Dependency Injection
     BankAnalyzerFacade --> ClassifierProtocol : Dependency Injection
-    BankAnalyzerFacade --> AnalyticsService : Composition
+    BankAnalyzerFacade ..> SelfTrainingClassifier : isinstance check
+    BankAnalyzerFacade *-- AnalyticsService : Composition
     BankAnalyzerFacade ..> KPIMetrics : returns
+    BankAnalyzerFacade ..> ClassificationMethod : MANUAL on override
+
+    StatementLoaderProtocol <|.. BankStatementLoader : implements
+    ClassifierProtocol <|.. TransactionClassifier : implements
+    SelfTrainingClassifier <|.. TransactionClassifier : implements
+    BankStatementLoader ..> TransactionType : sets
+    TransactionClassifier ..> ClassificationMethod : sets

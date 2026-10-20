@@ -20,7 +20,6 @@ from .models import (
     StatementLoaderProtocol,
 )
 
-
 class BankAnalyzerFacade:
     """Facade + Dependency Injection over loader, classifier and analytics.
 
@@ -51,18 +50,12 @@ class BankAnalyzerFacade:
     def analytics(self) -> AnalyticsService:
         return self._analytics
 
-    # ----------------------------------------------------------------- banks
-    def list_banks(self) -> list[str]:
-        return self._loader.list_banks()
 
-    def bank_labels(self) -> dict[str, str]:
-        return self._loader.bank_labels()
-
-    # -------------------------------------------------------- load/classify
+    # load/classify
     def load_and_classify(
-        self, file_path: str | Path, bank_key: Optional[str] = None
+        self, file_path: str | Path
     ) -> pd.DataFrame:
-        raw = self._loader.load(file_path, bank_key=bank_key)
+        raw = self._loader.load(file_path)
         classified = self._classifier.classify(raw)
         if not isinstance(classified, pd.DataFrame):
             raise TypeError("Classifier must return a DataFrame for statement files.")
@@ -97,7 +90,7 @@ class BankAnalyzerFacade:
         out.loc[affected, "confidence"] = 1.0
         return out
 
-    # -------------------------------------------------------------- filters
+    # filters
     @staticmethod
     def apply_date_filter(df: pd.DataFrame, start: date, end: date) -> pd.DataFrame:
         if df is None or df.empty:
@@ -105,7 +98,7 @@ class BankAnalyzerFacade:
         mask = (df["date"].dt.date >= start) & (df["date"].dt.date <= end)
         return df.loc[mask].copy()
 
-    # ------------------------------------------------------------ analytics
+    # analytics
     def compute_kpis(self, df: pd.DataFrame) -> KPIMetrics:
         return self._analytics.compute_kpis(df)
 

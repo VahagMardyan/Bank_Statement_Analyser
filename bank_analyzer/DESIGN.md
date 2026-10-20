@@ -3,7 +3,7 @@
 ## Layers
 
 ```
-app.py (Streamlit UI)
+app.py (Streamlit UI) ── Translator (modules/i18n.py) ── locales/*.json
   DashboardApp ── DashboardTab (ABC)
                     ├ VisualAnalyticsTab
                     ├ TransactionExplorerTab
@@ -43,6 +43,7 @@ modules/facade.py      BankAnalyzerFacade
 | Observer | `RuleSet.subscribe()`; `on_rules_changed()` in `RuleMatcher`, `FuzzyRuleIndex`, `LearnedCategoryModel` | When a manual override adds a rule, every index and the model rebuild automatically. |
 | Repository | `JsonRuleRepository` / `InMemoryRuleRepository`, `TrainingExampleStore` | Storage (JSON/CSV) is hidden behind load/save; evaluation uses the in-memory one so it never writes to disk. |
 | Parameter Object | `ClassificationRequest` | Raw, cleaned and primary text plus excluded categories travel together; cleaning happens once. |
+| Repository + injected Translator | `LocaleRepository`, `Translator` (`modules/i18n.py`) | No UI text in code. Every language is one `locales/<code>.json` file: add a file to add a language, delete it to remove one. Missing keys fall back to English. |
 | Value Object | `ClassificationResult`, `KPIMetrics`, `ParsedAmounts`, `BorderlessColumns` (frozen dataclasses) | Immutable results that can't be changed by accident. |
 
 ## SOLID
@@ -56,3 +57,11 @@ modules/facade.py      BankAnalyzerFacade
 ## One text cleaner
 
 `TextNormalizer.clean` is the only cleaning function. The loader's `cleaned_description`, the rule matcher and manual overrides all use it. As a result, a keyword saved from an override always matches the text the classifier sees.
+
+## Languages
+
+- **Add a language:** copy `locales/en.json` to `locales/<code>.json` (e.g. `ru.json`), set `meta.name` to the language's own name, and translate the values. It appears in the sidebar switch automatically.
+- **Check for gaps:** `python -m modules.i18n` lists missing or unknown keys per language.
+- **What's translated:** UI text, table headers, category names, transaction types, method names, bank names, and the currency word.
+- **What stays English:** the data itself (category keys, `income`/`expense`), so analytics, budgets and training never depend on the language.
+- **Exports** use the on-screen language. `evaluate_classifier.py` maps headers and values back from any language.

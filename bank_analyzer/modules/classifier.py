@@ -70,7 +70,7 @@ class TransactionClassifier:
             self._matcher, self._fuzzy, self.model
         )
 
-    # ------------------------------------------------------------ accessors
+    # accessors
     @property
     def rules(self) -> RuleSet:
         return self._rules
@@ -90,7 +90,7 @@ class TransactionClassifier:
     def get_categories(self) -> list[str]:
         return self._rules.categories()
 
-    # -------------------------------------------------------- classification
+    # classification
     def classify_description_result(
         self, description: str, exclude: frozenset[str] = frozenset()
     ) -> ClassificationResult:
@@ -150,7 +150,7 @@ class TransactionClassifier:
                 return col
         return None
 
-    # ------------------------------------------------------------- learning
+    # learning
     def manual_override(
         self,
         transaction_id: str,

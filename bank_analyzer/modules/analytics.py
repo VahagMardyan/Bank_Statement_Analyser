@@ -29,7 +29,7 @@ class AnalyticsService:
     def __init__(self, anomaly_detector: Optional[AnomalyDetector] = None) -> None:
         self._anomaly_detector = anomaly_detector
 
-    # --------------------------------------------------------------- helpers
+    # helpers
     @staticmethod
     def expenses(df: pd.DataFrame) -> pd.DataFrame:
         """Expense rows only.
@@ -46,7 +46,7 @@ class AnalyticsService:
             )
         return df[df["transaction_type"] == TransactionType.EXPENSE.value].copy()
 
-    # ---------------------------------------------------------------- queries
+    # queries
     def compute_kpis(self, df: pd.DataFrame) -> KPIMetrics:
         if df.empty:
             return KPIMetrics.empty()
@@ -150,11 +150,8 @@ class AnalyticsService:
         return pd.DataFrame(rows).sort_values("pct_used", ascending=False).reset_index(drop=True)
 
 
-# ------------------------------------------------------------------------
 # Backward-compatible function aliases
-# ------------------------------------------------------------------------
 _DEFAULT = AnalyticsService()
-
 
 def get_category_summary(df: pd.DataFrame) -> pd.DataFrame:
     return _DEFAULT.category_summary(df)

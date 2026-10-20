@@ -5,8 +5,8 @@ Patterns:
                 :class:`PdfLayoutStrategy` subclasses, one per PDF layout.
   * Factory   - :class:`StatementReaderFactory` picks the reader for a path.
 
-Every reader offers the same two operations: ``read`` (full table with
-headers applied) and ``preview`` (first raw rows, used for bank detection).
+Every reader offers ``can_read`` (is this my format?) and ``read`` (the full
+table with headers applied).
 """
 
 from __future__ import annotations
@@ -35,12 +35,7 @@ HEADER_AMOUNT_KEYWORDS = (
     "գումար", "amount", "sum", "transaction amount", "մուտք", "ելք", "debit", "credit",
 )
 
-# pdfplumber's default x_tolerance (3) glues words in some PDFs (Idram:
-# "ԼԻԱՆԱ ԴԱՎԹՅԱՆ" -> "ԼԻԱՆԱԴԱՎԹՅԱՆ", "24/05/2022 12:00" -> "24/05/202212:00"),
-# which breaks keyword matching and loses the time. 1.5 keeps the spaces.
 PDF_X_TOLERANCE = 1.5
-# A complete date at the start of a cell (2- or 4-digit year, not a fragment
-# such as "24/05/202" left over when a column split cuts the year).
 FULL_DATE_START = re.compile(r"^\d{1,2}[./\-]\d{1,2}[./\-](?:\d{4}|\d{2})(?!\d)")
 
 BORDERLESS_DATE_TOKEN = re.compile(r"^\d{2}/\d{2}/\d{2},?$")
@@ -49,9 +44,7 @@ BORDERLESS_AMOUNT_TOKEN = re.compile(r"^[+\-][\d,]+\.\d{2}$")
 BORDERLESS_CURRENCY_TOKEN = re.compile(r"^[A-Z]{3}$")
 
 
-# --------------------------------------------------------------------------
 # Small pure helpers (used by readers and the loader)
-# --------------------------------------------------------------------------
 def normalize_column_name(value: Any) -> str:
     if pd.isna(value):
         return ""
@@ -115,10 +108,7 @@ def is_pdf_file(path: Path) -> bool:
 def excel_engine(path: Path) -> str:
     return "xlrd" if _magic(path, 4) == OLE_MAGIC else "openpyxl"
 
-
-# --------------------------------------------------------------------------
 # Header detection
-# --------------------------------------------------------------------------
 class TableExtractor:
     """Locates the header row in a raw grid and returns a named DataFrame."""
 
@@ -171,15 +161,9 @@ class TableExtractor:
             return True
         return bool(re.match(r"^[+\-]?[\d.,\s]+$", value))
 
-
-# --------------------------------------------------------------------------
 # Reader strategies
-# --------------------------------------------------------------------------
 class StatementReader(ABC):
     """Strategy: turn a file on disk into a raw tabular DataFrame."""
-
-    #: rows returned by :meth:`preview` when ``nrows`` is not given
-    DEFAULT_PREVIEW_ROWS = 25
 
     def __init__(self, table_extractor: TableExtractor) -> None:
         self._table_extractor = table_extractor
@@ -192,12 +176,7 @@ class StatementReader(ABC):
     def read(self, path: Path, encoding: Optional[str] = None) -> pd.DataFrame:
         """Load the file and return a table (headers applied when possible)."""
 
-    @abstractmethod
-    def preview(self, path: Path, nrows: Optional[int] = None) -> pd.DataFrame:
-        """First raw rows (no header detection), for bank detection."""
 
-
-# ---------------------------------------------------------------- PDF layouts
 class PdfLayoutStrategy(ABC):
     """Strategy for one way a PDF statement can be laid out."""
 
@@ -410,9 +389,10 @@ class PdfStatementReader(StatementReader):
         layouts: Optional[Sequence[PdfLayoutStrategy]] = None,
     ) -> None:
         super().__init__(table_extractor)
-        self._tables = TableLayoutStrategy(table_extractor)
         self._layouts: list[PdfLayoutStrategy] = list(
-            layouts if layouts is not None else (BorderlessLayoutStrategy(), self._tables)
+            layouts
+            if layouts is not None
+            else (BorderlessLayoutStrategy(), TableLayoutStrategy(table_extractor))
         )
 
     def can_read(self, path: Path) -> bool:
@@ -430,10 +410,6 @@ class PdfStatementReader(StatementReader):
             "as CSV or Excel instead."
         )
 
-    def preview(self, path: Path, nrows: Optional[int] = None) -> pd.DataFrame:
-        rows = self._tables.raw_rows(path)[: nrows or self.DEFAULT_PREVIEW_ROWS]
-        return pd.DataFrame(rows)
-
 
 class ExcelStatementReader(StatementReader):
     """Excel strategy (.xlsx / .xls) using magic-byte engine selection."""
@@ -446,19 +422,11 @@ class ExcelStatementReader(StatementReader):
         raw_df = pd.read_excel(path, header=None, engine=excel_engine(path))
         return self._table_extractor.extract(raw_df)
 
-    def preview(self, path: Path, nrows: Optional[int] = None) -> pd.DataFrame:
-        return pd.read_excel(
-            path, header=None, engine=excel_engine(path),
-            nrows=nrows or self.DEFAULT_PREVIEW_ROWS,
-        )
-
 
 class CsvStatementReader(StatementReader):
     """CSV strategy with encoding fallback (always used as last resort)."""
 
     DEFAULT_ENCODINGS: tuple[str, ...] = ("utf-8-sig", "utf-8", "latin-1", "cp1252", "armscii8")
-    # header row + 10 data rows, as the old CSV detection used
-    DEFAULT_PREVIEW_ROWS = 11
 
     def can_read(self, path: Path) -> bool:
         return True
@@ -466,19 +434,14 @@ class CsvStatementReader(StatementReader):
     def read(self, path: Path, encoding: Optional[str] = None) -> pd.DataFrame:
         return self._table_extractor.extract(self._read_raw(path, encoding))
 
-    def preview(self, path: Path, nrows: Optional[int] = None) -> pd.DataFrame:
-        return self._read_raw(path, None, nrows or self.DEFAULT_PREVIEW_ROWS)
-
-    def _read_raw(
-        self, path: Path, encoding: Optional[str], nrows: Optional[int] = None
-    ) -> pd.DataFrame:
+    def _read_raw(self, path: Path, encoding: Optional[str]) -> pd.DataFrame:
         for enc in [encoding] if encoding else self.DEFAULT_ENCODINGS:
             if not enc:
                 continue
             try:
                 return pd.read_csv(
                     path, header=None, encoding=enc, on_bad_lines="skip",
-                    engine="python", nrows=nrows,
+                    engine="python",
                 )
             except (OSError, UnicodeError, pd.errors.ParserError, ValueError):
                 continue

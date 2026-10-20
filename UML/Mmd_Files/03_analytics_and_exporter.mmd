@@ -1,47 +1,62 @@
 classDiagram
+    direction LR
+
+    class AnalyticsService {
+        - AnomalyDetector _anomaly_detector
+        + expenses(df)$ DataFrame
+        + compute_kpis(df) KPIMetrics
+        + category_summary(df) DataFrame
+        + monthly_trends(df, freq) DataFrame
+        + weekly_trends(df) DataFrame
+        + top_expenses(df, n) DataFrame
+        + detect_anomalies(df, threshold_std, detector) DataFrame
+        + check_budget_limits(df, budget_dict) DataFrame
+    }
+
     class AnomalyDetector {
         <<abstract>>
         + detect(expenses)* DataFrame
     }
-
     class ZScoreAnomalyDetector {
         + float threshold_std
         + detect(expenses) DataFrame
     }
 
-    class AnalyticsService {
-        + category_summary(df) DataFrame
-        + monthly_trends(df, freq) DataFrame
-        + weekly_trends(df) DataFrame
-        + detect_anomalies(df, threshold_std, detector) DataFrame
-        + check_budget_limits(df, budget_dict) DataFrame
-        + compute_kpis(df) KPIMetrics
+    class KPIMetrics {
+        <<dataclass>>
+        + float total_income
+        + float total_expenses
+        + float net_savings
+        + int transaction_count
+        + empty()$ KPIMetrics
+        + as_dict() dict
     }
 
     class ExportStrategy {
-        <<interface>>
-        + string file_extension*
-        + string mime_type*
-        + export(df, columns)* bytes
+        <<abstract>>
+        + str file_extension
+        + str mime_type
+        + export(df, columns) bytes
+        # _serialize(df)* bytes
     }
-
     class CsvExportStrategy {
-        + export(df, columns) bytes
+        # _serialize(df) bytes
     }
-
     class ExcelExportStrategy {
-        + export(df, columns) bytes
+        # _serialize(df) bytes
     }
-
     class ExportStrategyFactory {
-        - dict _REGISTRY$
+        - dict _registry$
+        + register(label)$ decorator
         + labels()$ list
         + create(label)$ ExportStrategy
     }
 
-    AnomalyDetector <|-- ZScoreAnomalyDetector : Realization
-    ExportStrategy <|.. CsvExportStrategy : Realization
-    ExportStrategy <|.. ExcelExportStrategy : Realization
+    AnomalyDetector <|-- ZScoreAnomalyDetector : Strategy
+    AnalyticsService o-- AnomalyDetector : injected (optional)
+    AnalyticsService ..> KPIMetrics : returns
 
-    AnalyticsService ..> AnomalyDetector : uses strategy
+    ExportStrategy <|-- CsvExportStrategy : Strategy + Template Method
+    ExportStrategy <|-- ExcelExportStrategy : Strategy + Template Method
+    ExportStrategyFactory o-- ExportStrategy : @register (Registry)
     ExportStrategyFactory ..> ExportStrategy : creates

@@ -1,0 +1,146 @@
+{
+  "meta": {
+    "name": "",
+    "flag": "🇬🇧",
+    "currency": "AMD"
+  },
+  "common": {
+    "yes": "Yes",
+    "no": "No"
+  },
+  "app": {
+    "page_title": "Bank Statement Analyzer",
+    "title": "🏦 Bank Statement Analyzer",
+    "caption": "Parse, categorize, and visualize bank statements from Armenian and international banks."
+  },
+  "sidebar": {
+    "header": "Configuration",
+    "language": "Language",
+    "upload": "Upload Bank Statement (CSV / Excel / PDF)",
+    "load_button": "Load & Analyze",
+    "load_error": "Failed to load statement: {error}",
+    "load_success": "Loaded {count} transactions.",
+    "date_range": "Date Range"
+  },
+  "metrics": {
+    "total_income": "Total Income",
+    "total_expenses": "Total Expenses",
+    "net_savings": "Net Savings",
+    "transactions": "Transactions"
+  },
+  "tabs": {
+    "visual": "Visual Analytics",
+    "explorer": "Transaction Explorer",
+    "budget": "Budget & Anomalies"
+  },
+  "visual": {
+    "pie_title": "Expense Distribution by Category",
+    "no_expense_data": "No expense data to display.",
+    "trend_title": "Monthly Spending Trends",
+    "no_trend_data": "No trend data available.",
+    "axis_spend": "Spend ({currency})",
+    "axis_month": "Month",
+    "top_expenses": "Top 5 Largest Expenses",
+    "no_expenses": "No expenses found."
+  },
+  "explorer": {
+    "filter_category": "Filter by Category",
+    "all": "All",
+    "search": "Search Description",
+    "select_columns": "Select Columns to Display & Export",
+    "no_columns": "Please select at least one column to display and export.",
+    "export_format": "Export Format",
+    "download": "📥 Download as {format}",
+    "export_file_name": "transactions_export",
+    "override_header": "Manual Category Override",
+    "transaction_id": "Transaction ID",
+    "new_category": "New Category",
+    "apply_override": "Apply Override",
+    "override_success": "Category updated to '{category}'. Rules/dataset updated for retraining."
+  },
+  "budget": {
+    "header": "Budget Limits",
+    "input_label": "{category} Budget ({currency})",
+    "progress": "**{category}** — {actual} / {budget} {currency}",
+    "over_budget": "Over budget by {amount} {currency}",
+    "anomaly_header": "Anomaly Detection",
+    "zscore_threshold": "Z-Score Threshold",
+    "no_anomalies": "No anomalies detected at this threshold."
+  },
+  "welcome": {
+    "info": "Upload a statement file (CSV, XLSX, XLS, PDF) using the sidebar to get started.",
+    "features_title": "Supported features:",
+    "features": [
+      "Statements from Ameriabank, ACBA, Inecobank, Evocabank and other banks",
+      "Supports CSV, XLSX, XLS, and PDF formats",
+      "Hybrid rule + ML categorization",
+      "Interactive charts, budget tracking, and export functionality"
+    ]
+  },
+  "columns": {
+    "transaction_id": "ID",
+    "date": "Date",
+    "description": "Description",
+    "cleaned_description": "Cleaned description",
+    "category": "Category",
+    "amount": "Amount",
+    "transaction_type": "Type",
+    "confidence": "Confidence",
+    "method": "Method",
+    "z_score": "Z-score",
+    "category_mean": "Category mean",
+    "category_std": "Category std. dev.",
+    "is_anomaly": "Anomaly",
+    "budget": "Budget",
+    "actual": "Actual",
+    "remaining": "Remaining",
+    "pct_used": "Used, %",
+    "over_budget": "Over budget",
+    "total_spend": "Total spend",
+    "transaction_count": "Transactions",
+    "pct_of_total": "Share, %",
+    "period": "Period"
+  },
+  "transaction_types": {
+    "income": "Income",
+    "expense": "Expense"
+  },
+  "methods": {
+    "Merchant rule": "Merchant rule",
+    "Keyword rule": "Keyword rule",
+    "Name heuristic": "Name heuristic",
+    "ML model": "ML model",
+    "Vector": "Fuzzy match",
+    "manual": "Manual",
+    "None": "Not classified"
+  },
+  "categories": {
+    "Transport": "Transport",
+    "Fuel": "Fuel",
+    "Salary": "Salary",
+    "Income": "Income",
+    "Cafes and Restaurants": "Cafes and Restaurants",
+    "Supermarket": "Supermarket",
+    "Shopping": "Shopping",
+    "E-commerce": "E-commerce",
+    "Subscriptions": "Subscriptions",
+    "Utilities": "Utilities",
+    "Healthcare": "Healthcare",
+    "Insurance": "Insurance",
+    "Entertainment": "Entertainment",
+    "Education": "Education",
+    "Travel": "Travel",
+    "Beauty and Personal Care": "Beauty and Personal Care",
+    "Pets": "Pets",
+    "Government and Fees": "Government and Fees",
+    "Loans and Credit": "Loans and Credit",
+    "Rent": "Rent",
+    "Charity and Donations": "Charity and Donations",
+    "Fee": "Fee",
+    "ATM": "ATM",
+    "Transfer": "Transfer",
+    "Fitness and Sport": "Fitness and Sport",
+    "Individual Entrepreneurs": "Individual Entrepreneurs",
+    "Other": "Other"
+  }
+}

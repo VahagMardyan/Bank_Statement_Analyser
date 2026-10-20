@@ -27,6 +27,7 @@ import pandas as pd
 
 from modules.classification_handlers import RuleMatcher
 from modules.classifier import TransactionClassifier
+from modules.i18n import LocaleRepository
 from modules.ml_model import LearnedCategoryModel
 from modules.models import ClassificationMethod
 from modules.rules import InMemoryRuleRepository, JsonRuleRepository
@@ -61,7 +62,17 @@ def load_labelled(path: Path) -> pd.DataFrame:
             raise SystemExit(f"Could not read {path} - save it as 'CSV UTF-8' or .xlsx.")
 
     df.columns = [str(c).strip().lstrip("﻿").lower() for c in df.columns]
-    df = df.rename(columns={c: COLUMN_ALIASES[c] for c in df.columns if c in COLUMN_ALIASES})
+    # Exports from the app use the UI language: map headers and values back
+    # to the English keys, whatever language the file was exported in.
+    locales = LocaleRepository()
+    headers = {**locales.reverse_lookup("columns"), **COLUMN_ALIASES}
+    df = df.rename(columns={c: headers[c] for c in df.columns if c in headers})
+    for col, section in (("category", "categories"), ("transaction_type", "transaction_types")):
+        if col in df.columns:
+            reverse = locales.reverse_lookup(section)
+            df[col] = df[col].map(
+                lambda v: reverse.get(str(v).strip().lower(), v) if pd.notna(v) else v
+            )
     missing = {"description", "category"} - set(df.columns)
     if missing:
         raise SystemExit(

@@ -1,61 +1,189 @@
 classDiagram
-    class ClassificationResult {
-        + string category
-        + float confidence
-        + string method
-        + as_tuple() tuple
+    direction TB
+
+    class TransactionClassifier {
+        - RuleRepository _repository
+        - RuleSet _rules
+        - RuleMatcher _matcher
+        - FuzzyRuleIndex _fuzzy
+        - ClassificationHandler _chain
+        - TextNormalizer _normalizer
+        + LearnedCategoryModel model
+        + get_categories() list
+        + classify(target) str or DataFrame
+        + classify_dataframe(df) DataFrame
+        + classify_description_result(description, exclude) ClassificationResult
+        + manual_override(transaction_id, new_category, cleaned_description, persist)
+        + learn_from_dataframe(classified, persist) int
+        + reclassify_uncertain(classified) DataFrame
     }
 
-    class RuleIndex {
-        - dict rules
-        - TfidVectorizer _vectorizer
-        + iter_keyword_rules()
-        + iter_merchant_rules()
-        + find_merchant_match(text)
-        + find_keyword_match(text)
-        + predict_vector(text, threshold)
+    class RuleRepository {
+        <<abstract>>
+        + load()* RuleSet
+        + save(rules)*
+    }
+    class JsonRuleRepository {
+        + Path path
+        + load() RuleSet
+        + save(rules)
+    }
+    class InMemoryRuleRepository {
+        + load() RuleSet
+        + save(rules)
+    }
+
+    class RuleSet {
+        - dict~str, CategoryRule~ _rules
+        - list~RuleSetObserver~ _observers
+        + subscribe(observer, notify_now)
+        + categories() list
+        + iter_keyword_rules() Iterator
+        + iter_merchant_rules() Iterator
+        + iter_rule_texts() Iterator
+        + add_keyword(category, keyword) bool
+        + prune(should_remove) int
+        + to_dict() dict
+    }
+    class CategoryRule {
+        <<dataclass>>
+        + list keywords
+        + list~Merchant~ merchants
+    }
+    class Merchant {
+        <<dataclass>>
+        + str name
+        + list aliases
+    }
+    class RuleSetObserver {
+        <<interface>>
+        + on_rules_changed(rules)
+    }
+
+    class RuleMatcher {
+        + on_rules_changed(rules)
+        + alias_matches(alias, text)$ bool
+        + find_merchant_match(text) tuple
+        + find_keyword_match(text) tuple
+    }
+    class FuzzyRuleIndex {
+        + on_rules_changed(rules)
+        + predict(text, threshold, exclude, shortlist) tuple
+    }
+    class LearnedCategoryModel {
+        + float min_probability
+        + float min_margin
+        - TrainingExampleStore _store
+        + on_rules_changed(rules)
+        + add_examples(examples, source, persist) int
+        + fit(frame) LearnedCategoryModel
+        + predict(text, exclude) Prediction
+    }
+    class TrainingExampleStore {
+        + Path path
+        + load() DataFrame
+        + save(rows)
+    }
+    class TrainingSource {
+        <<enumeration>>
+        SEED
+        RULE
+        MANUAL
+        + weight float
+        + priority int
+    }
+    class Prediction {
+        <<dataclass>>
+        + str category
+        + float probability
+        + float margin
+    }
+
+    class TextNormalizer {
+        + clean(text) str
+        + ml_text(text) str
+        + token_windows(text, max_len)$ list
     }
 
     class ClassificationHandler {
         <<abstract>>
-        # ClassificationHandler _next
+        - ClassificationHandler _next
         + set_next(handler) ClassificationHandler
-        + handle(text) ClassificationResult
-        # try_classify(text)* ClassificationResult
+        + handle(request) ClassificationResult
+        # try_classify(request)* ClassificationResult
+    }
+    class PrimaryDescriptionHandler
+    class MerchantRuleHandler
+    class KeywordRuleHandler
+    class IndividualEntrepreneurHandler
+    class IndividualEntrepreneurDetector {
+        + matches(text) bool
+    }
+    class LearnedModelHandler
+    class VectorSimilarityHandler
+
+    class ClassificationChainBuilder {
+        - list _handlers
+        + then(handler) ClassificationChainBuilder
+        + build() ClassificationHandler
     }
 
-    class MerchantRuleHandler {
-        - RuleIndex _index
-        # try_classify(text) ClassificationResult
+    class ClassificationRequest {
+        <<dataclass>>
+        + str raw
+        + frozenset exclude
+        + cleaned str
+        + primary str
+        + allows(category) bool
+    }
+    class ClassificationResult {
+        <<dataclass>>
+        + str category
+        + float confidence
+        + str method
+        + unclassified(confidence)$ ClassificationResult
+        + as_tuple() tuple
     }
 
-    class KeywordRuleHandler {
-        - RuleIndex _index
-        # try_classify(text) ClassificationResult
-    }
+    TransactionClassifier --> RuleRepository : loads / saves
+    RuleRepository <|-- JsonRuleRepository : Repository
+    RuleRepository <|-- InMemoryRuleRepository : Repository
+    RuleRepository ..> RuleSet : creates
+    TransactionClassifier *-- RuleSet
+    RuleSet *-- CategoryRule
+    CategoryRule *-- Merchant
 
-    class VectorSimilarityHandler {
-        - RuleIndex _index
-        # try_classify(text) ClassificationResult
-    }
+    RuleSet o-- RuleSetObserver : notifies (Observer)
+    RuleSetObserver <|.. RuleMatcher
+    RuleSetObserver <|.. FuzzyRuleIndex
+    RuleSetObserver <|.. LearnedCategoryModel
+    TransactionClassifier *-- RuleMatcher
+    TransactionClassifier *-- FuzzyRuleIndex
+    TransactionClassifier o-- LearnedCategoryModel : optional
+    LearnedCategoryModel *-- TrainingExampleStore
+    LearnedCategoryModel ..> TrainingSource
+    LearnedCategoryModel ..> Prediction : returns
 
-    class TransactionClassifier {
-        - RuleIndex _index
-        - ClassificationHandler _chain
-        + classify(target)
-        + classify_dataframe(df)
-        + manual_override(transaction_id, new_category, cleaned_desc)
-    }
+    TransactionClassifier --> ClassificationChainBuilder : builds chain
+    ClassificationChainBuilder ..> ClassificationHandler : links
+    TransactionClassifier *-- ClassificationHandler : chain head
+    ClassificationHandler "0..1" o-- "0..1" ClassificationHandler : _next
+    ClassificationHandler <|-- PrimaryDescriptionHandler : 1
+    ClassificationHandler <|-- MerchantRuleHandler : 2
+    ClassificationHandler <|-- KeywordRuleHandler : 3
+    ClassificationHandler <|-- IndividualEntrepreneurHandler : 4
+    ClassificationHandler <|-- LearnedModelHandler : 5
+    ClassificationHandler <|-- VectorSimilarityHandler : 6
+    PrimaryDescriptionHandler --> RuleMatcher
+    MerchantRuleHandler --> RuleMatcher
+    KeywordRuleHandler --> RuleMatcher
+    IndividualEntrepreneurHandler *-- IndividualEntrepreneurDetector
+    LearnedModelHandler --> LearnedCategoryModel
+    VectorSimilarityHandler --> FuzzyRuleIndex
 
-    ClassificationHandler <|-- MerchantRuleHandler : Inheritance
-    ClassificationHandler <|-- KeywordRuleHandler : Inheritance
-    ClassificationHandler <|-- VectorSimilarityHandler : Inheritance
-
-    ClassificationHandler "0..1" o-- "0..1" ClassificationHandler : _next chain
-    MerchantRuleHandler --> RuleIndex : uses
-    KeywordRuleHandler --> RuleIndex : uses
-    VectorSimilarityHandler --> RuleIndex : uses
-
-    TransactionClassifier *-- RuleIndex : Composition
-    TransactionClassifier *-- ClassificationHandler : owns chain head
-    ClassificationHandler ..> ClassificationResult : creates
+    ClassificationHandler ..> ClassificationRequest : receives
+    ClassificationHandler ..> ClassificationResult : returns
+    ClassificationRequest --> TextNormalizer : cleans with
+    FuzzyRuleIndex --> TextNormalizer
+    LearnedCategoryModel --> TextNormalizer
+    JsonRuleRepository --> TextNormalizer

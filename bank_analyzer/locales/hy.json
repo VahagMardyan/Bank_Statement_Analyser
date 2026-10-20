@@ -1,0 +1,146 @@
+{
+  "meta": {
+    "name": "",
+    "flag": "🇦🇲",
+    "currency": "դրամ"
+  },
+  "common": {
+    "yes": "Այո",
+    "no": "Ոչ"
+  },
+  "app": {
+    "page_title": "Բանկային քաղվածքների վերլուծիչ",
+    "title": "🏦 Բանկային քաղվածքների վերլուծիչ",
+    "caption": "Հայկական և միջազգային բանկերի քաղվածքների մշակում, դասակարգում և վիզուալացում։"
+  },
+  "sidebar": {
+    "header": "Կարգավորումներ",
+    "language": "Լեզու",
+    "upload": "Վերբեռնեք բանկային քաղվածքը (CSV / Excel / PDF)",
+    "load_button": "Բեռնել և վերլուծել",
+    "load_error": "Չհաջողվեց բեռնել քաղվածքը՝ {error}",
+    "load_success": "Բեռնվեց {count} գործարք։",
+    "date_range": "Ժամանակահատված"
+  },
+  "metrics": {
+    "total_income": "Ընդհանուր մուտքեր",
+    "total_expenses": "Ընդհանուր ծախսեր",
+    "net_savings": "Զուտ խնայողություն",
+    "transactions": "Գործարքներ"
+  },
+  "tabs": {
+    "visual": "Վիզուալ վերլուծություն",
+    "explorer": "Գործարքներ",
+    "budget": "Բյուջե և անոմալիաներ"
+  },
+  "visual": {
+    "pie_title": "Ծախսերի բաշխումն ըստ կատեգորիաների",
+    "no_expense_data": "Ծախսերի տվյալներ չկան։",
+    "trend_title": "Ծախսերի ամսական դինամիկա",
+    "no_trend_data": "Դինամիկայի տվյալներ չկան։",
+    "axis_spend": "Ծախս ({currency})",
+    "axis_month": "Ամիս",
+    "top_expenses": "5 ամենամեծ ծախսերը",
+    "no_expenses": "Ծախսեր չեն գտնվել։"
+  },
+  "explorer": {
+    "filter_category": "Զտել ըստ կատեգորիայի",
+    "all": "Բոլորը",
+    "search": "Որոնել նկարագրությունում",
+    "select_columns": "Ցուցադրվող և արտահանվող սյունակներ",
+    "no_columns": "Ընտրեք առնվազն մեկ սյունակ։",
+    "export_format": "Արտահանման ձևաչափ",
+    "download": "📥 Ներբեռնել ({format})",
+    "export_file_name": "գործարքներ",
+    "override_header": "Կատեգորիայի ձեռքով փոփոխություն",
+    "transaction_id": "Գործարքի ID",
+    "new_category": "Նոր կատեգորիա",
+    "apply_override": "Կիրառել",
+    "override_success": "Կատեգորիան փոխվեց՝ «{category}»։ Կանոններն ու ուսուցման տվյալները թարմացվեցին։"
+  },
+  "budget": {
+    "header": "Բյուջեի սահմանաչափեր",
+    "input_label": "{category} — բյուջե ({currency})",
+    "progress": "**{category}** — {actual} / {budget} {currency}",
+    "over_budget": "Բյուջեն գերազանցված է՝ {amount} {currency}",
+    "anomaly_header": "Անոմալիաների հայտնաբերում",
+    "zscore_threshold": "Z-գնահատականի շեմ",
+    "no_anomalies": "Այս շեմով անոմալիաներ չեն հայտնաբերվել։"
+  },
+  "welcome": {
+    "info": "Սկսելու համար վերբեռնեք քաղվածքի ֆայլը (CSV, XLSX, XLS, PDF) կողային վահանակից։",
+    "features_title": "Հնարավորություններ՝",
+    "features": [
+      "Տարբեր բանկերի քաղվածքներ (Ամերիաբանկ, ԱԿԲԱ բանկ, Ինեկոբանկ, Էվոկաբանկ և այլն)",
+      "CSV, XLSX, XLS և PDF ձևաչափեր",
+      "Դասակարգում կանոններով և մեքենայական ուսուցմամբ",
+      "Ինտերակտիվ գրաֆիկներ, բյուջեի վերահսկում և արտահանում"
+    ]
+  },
+  "columns": {
+    "transaction_id": "ID",
+    "date": "Ամսաթիվ",
+    "description": "Նկարագրություն",
+    "cleaned_description": "Մաքրված նկարագրություն",
+    "category": "Կատեգորիա",
+    "amount": "Գումար",
+    "transaction_type": "Տեսակ",
+    "confidence": "Վստահություն",
+    "method": "Մեթոդ",
+    "z_score": "Z-գնահատական",
+    "category_mean": "Կատեգորիայի միջին",
+    "category_std": "Ստանդարտ շեղում",
+    "is_anomaly": "Անոմալիա",
+    "budget": "Բյուջե",
+    "actual": "Փաստացի",
+    "remaining": "Մնացորդ",
+    "pct_used": "Օգտագործված, %",
+    "over_budget": "Գերազանցում",
+    "total_spend": "Ընդհանուր ծախս",
+    "transaction_count": "Գործարքների քանակ",
+    "pct_of_total": "Մասնաբաժին, %",
+    "period": "Ժամանակահատված"
+  },
+  "transaction_types": {
+    "income": "Մուտք",
+    "expense": "Ելք"
+  },
+  "methods": {
+    "Merchant rule": "Վաճառողի կանոն",
+    "Keyword rule": "Բանալի բառի կանոն",
+    "Name heuristic": "Անվան հևրիստիկա",
+    "ML model": "ML մոդել",
+    "Vector": "Մոտավոր համընկնում",
+    "manual": "Ձեռքով",
+    "None": "Չդասակարգված"
+  },
+  "categories": {
+    "Transport": "Տրանսպորտ",
+    "Fuel": "Վառելիք",
+    "Salary": "Աշխատավարձ",
+    "Income": "Եկամուտ",
+    "Cafes and Restaurants": "Սրճարաններ և ռեստորաններ",
+    "Supermarket": "Սուպերմարկետ",
+    "Shopping": "Գնումներ",
+    "E-commerce": "Առցանց գնումներ",
+    "Subscriptions": "Բաժանորդագրություններ",
+    "Utilities": "Կոմունալ ծառայություններ",
+    "Healthcare": "Առողջապահություն",
+    "Insurance": "Ապահովագրություն",
+    "Entertainment": "Ժամանց",
+    "Education": "Կրթություն",
+    "Travel": "Ճամփորդություն",
+    "Beauty and Personal Care": "Գեղեցկություն և անձնական խնամք",
+    "Pets": "Ընտանի կենդանիներ",
+    "Government and Fees": "Պետական վճարներ և տուրքեր",
+    "Loans and Credit": "Վարկեր",
+    "Rent": "Վարձակալություն",
+    "Charity and Donations": "Բարեգործություն",
+    "Fee": "Միջնորդավճարներ",
+    "ATM": "Բանկոմատ",
+    "Transfer": "Փոխանցումներ",
+    "Fitness and Sport": "Ֆիտնես և սպորտ",
+    "Individual Entrepreneurs": "Անհատ ձեռներեցներ",
+    "Other": "Այլ"
+  }
+}

@@ -39,9 +39,7 @@ KEYWORD_CONFIDENCE = 0.95
 NAME_HEURISTIC_CONFIDENCE = 0.7
 
 
-# --------------------------------------------------------------------------
 # Rule indexes (both are RuleSet observers)
-# --------------------------------------------------------------------------
 class RuleMatcher:
     """Exact longest-match lookup of merchant aliases and keywords."""
 
@@ -175,9 +173,7 @@ class FuzzyRuleIndex:
         return float(min(ratios))
 
 
-# --------------------------------------------------------------------------
 # Handlers
-# --------------------------------------------------------------------------
 class ClassificationHandler(ABC):
     """Base handler: try this strategy, otherwise forward to the next."""
 
@@ -376,9 +372,7 @@ class VectorSimilarityHandler(ClassificationHandler):
         )
 
 
-# --------------------------------------------------------------------------
 # Builder
-# --------------------------------------------------------------------------
 class ClassificationChainBuilder:
     """Builder: assembles the handler chain in one readable place."""
 

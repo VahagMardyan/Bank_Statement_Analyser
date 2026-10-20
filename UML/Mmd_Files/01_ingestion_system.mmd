@@ -1,4 +1,61 @@
 classDiagram
+    direction TB
+
+    class StatementLoaderTemplate {
+        <<abstract>>
+        + STANDARD_COLUMNS$
+        + load(file_path, encoding) DataFrame
+        # read_raw(path, encoding)* DataFrame
+        # standardize(raw)* DataFrame
+        # drop_invalid_rows(rows)* DataFrame
+        # finalize(rows) DataFrame
+    }
+
+    class BankStatementLoader {
+        - StatementReaderFactory _readers
+        - TextNormalizer _normalizer
+        - ColumnResolver _columns
+        - AmountParser _amounts
+        - DateParser _dates
+        - DescriptionBuilder _descriptions
+        + COLUMN_HINTS$
+        + clean_description(text) string
+    }
+
+    class ColumnResolver {
+        + key(column)$ string
+        + resolve(df, hints) string
+        + resolve_date(df, hints) string
+        + resolve_description(df, hints, exclude) string
+    }
+
+    class AmountParser {
+        - ColumnResolver _resolver
+        + parse(df, debit_hints, credit_hints, amount_hints, exclude) ParsedAmounts
+    }
+
+    class ParsedAmounts {
+        <<dataclass>>
+        + Series amount
+        + Series transaction_type
+        + tuple source_columns
+    }
+
+    class DateParser {
+        + parse(series) Series
+    }
+
+    class DescriptionBuilder {
+        + SEPARATOR$
+        - ColumnResolver _resolver
+        + build(df, desc_col) Series
+    }
+
+    class StatementReaderFactory {
+        - list~StatementReader~ _readers
+        + create(path) StatementReader
+    }
+
     class StatementReader {
         <<abstract>>
         # TableExtractor _table_extractor
@@ -7,18 +64,18 @@ classDiagram
     }
 
     class PdfStatementReader {
+        - list~PdfLayoutStrategy~ _layouts
         + can_read(path) bool
         + read(path, encoding) DataFrame
-        + extract_preview_rows(path, limit) list
     }
 
     class ExcelStatementReader {
         + can_read(path) bool
         + read(path, encoding) DataFrame
-        + preview(path, nrows) DataFrame
     }
 
     class CsvStatementReader {
+        + DEFAULT_ENCODINGS$
         + can_read(path) bool
         + read(path, encoding) DataFrame
     }
@@ -27,25 +84,49 @@ classDiagram
         + extract(raw_df) DataFrame
     }
 
-    class StatementReaderFactory {
-        - PdfStatementReader _pdf
-        - ExcelStatementReader _excel
-        - CsvStatementReader _csv
-        + create(path) StatementReader
+    class PdfLayoutStrategy {
+        <<abstract>>
+        + extract(path)* DataFrame
     }
 
-    class BankStatementLoader {
-        - dict _configs
-        - StatementReaderFactory _reader_factory
-        + detect_bank(file_path) string
-        + load(file_path, bank_key, encoding) DataFrame
-        + clean_description(text)$ string
+    class BorderlessLayoutStrategy {
+        + BorderlessColumns columns
+        + extract(path) DataFrame
     }
 
-    StatementReader <|-- PdfStatementReader : Inheritance
-    StatementReader <|-- ExcelStatementReader : Inheritance
-    StatementReader <|-- CsvStatementReader : Inheritance
+    class TableLayoutStrategy {
+        - TableExtractor _table_extractor
+        + extract(path) DataFrame
+        + raw_rows(path) list
+    }
 
+    class BorderlessColumns {
+        <<dataclass>>
+        + float first_date_max_x
+        + float date_time_max_x
+        + float type_max_x
+        + float counterparty_max_x
+        + float amount_min_x
+    }
+
+    StatementLoaderTemplate <|-- BankStatementLoader : Template Method
+    BankStatementLoader *-- StatementReaderFactory
+    BankStatementLoader *-- ColumnResolver
+    BankStatementLoader *-- AmountParser
+    BankStatementLoader *-- DateParser
+    BankStatementLoader *-- DescriptionBuilder
+    AmountParser --> ColumnResolver : uses
+    DescriptionBuilder --> ColumnResolver : uses
+    AmountParser ..> ParsedAmounts : returns
+
+    StatementReaderFactory o-- StatementReader : Factory
+    StatementReader <|-- PdfStatementReader : Strategy
+    StatementReader <|-- ExcelStatementReader : Strategy
+    StatementReader <|-- CsvStatementReader : Strategy
     StatementReader o-- TableExtractor : uses
-    StatementReaderFactory *-- StatementReader : Aggregates readers
-    BankStatementLoader *-- StatementReaderFactory : Composition
+
+    PdfStatementReader o-- PdfLayoutStrategy : tries in order
+    PdfLayoutStrategy <|-- BorderlessLayoutStrategy : Strategy
+    PdfLayoutStrategy <|-- TableLayoutStrategy : Strategy
+    BorderlessLayoutStrategy *-- BorderlessColumns
+    TableLayoutStrategy o-- TableExtractor : uses

@@ -13,9 +13,7 @@ import pandas as pd
 if TYPE_CHECKING:  # avoid a runtime import cycle with text_utils
     from .text_utils import TextNormalizer
 
-
 OTHER_CATEGORY = "Other"
-
 
 class TransactionType(str, Enum):
     """Income vs expense in the unified transaction schema."""
@@ -40,7 +38,6 @@ class ClassificationMethod(str, Enum):
 TRUSTED_METHODS: frozenset[str] = frozenset(
     {ClassificationMethod.MERCHANT_RULE.value, ClassificationMethod.KEYWORD_RULE.value}
 )
-
 
 @dataclass(frozen=True)
 class ClassificationResult:
@@ -112,10 +109,7 @@ class KPIMetrics:
             "transaction_count": self.transaction_count,
         }
 
-
-# --------------------------------------------------------------------------
 # Interfaces (Dependency Inversion + Interface Segregation)
-# --------------------------------------------------------------------------
 class ClassifierProtocol(Protocol):
     """Minimal interface the UI/facade needs from any classifier."""
 
@@ -148,19 +142,11 @@ class SelfTrainingClassifier(Protocol):
 
     def reclassify_uncertain(self, classified: pd.DataFrame) -> pd.DataFrame: ...
 
-
 class StatementLoaderProtocol(Protocol):
     """Interface for loading statements into the unified schema."""
-
-    def list_banks(self) -> list[str]: ...
-
-    def bank_display_name(self, bank_key: str) -> str: ...
-
-    def bank_labels(self) -> dict[str, str]: ...
 
     def load(
         self,
         file_path: str | Path,
-        bank_key: str | None = None,
         encoding: str | None = None,
     ) -> pd.DataFrame: ...

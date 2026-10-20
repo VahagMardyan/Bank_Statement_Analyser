@@ -1,0 +1,91 @@
+classDiagram
+    direction TB
+
+    class DashboardApp {
+        + tab_classes$
+        + BankAnalyzerFacade analyzer
+        + Translator tr
+        + list~DashboardTab~ tabs
+        + run()
+        - _render_language_switch()
+        - _render_sidebar() DataFrame
+        - _load(uploaded)
+        - _date_filter(df) DataFrame
+        - _render_metrics(kpis)
+        - _render_welcome()
+    }
+
+    class DashboardTab {
+        <<abstract>>
+        + str title_key$
+        + BankAnalyzerFacade analyzer
+        + Translator tr
+        + title str
+        + table(df)
+        + render(df)*
+    }
+    class VisualAnalyticsTab {
+        + render(df)
+    }
+    class TransactionExplorerTab {
+        + render(df)
+    }
+    class BudgetAnomaliesTab {
+        + render(df)
+    }
+
+    class Translator {
+        - dict~str, Locale~ _locales
+        - Locale _current
+        - Locale _fallback
+        + language str
+        + from_directory(directory, language)$ Translator
+        + languages() dict
+        + t(key, params) str
+        + t_or(key, default) str
+        + t_list(key) list
+        + category(key) str
+        + transaction_type(value) str
+        + method(value) str
+        + column(name) str
+        + yes_no(value) str
+        + localize(df, headers) DataFrame
+    }
+    class LocaleRepository {
+        + Path directory
+        + load_all() dict
+        + reverse_lookup(section) dict
+    }
+    class Locale {
+        <<dataclass>>
+        + str code
+        + dict data
+        + name str
+        + get(key) Any
+        + section(name) dict
+        + leaf_keys() Iterator
+    }
+    class LocaleFiles {
+        <<files>>
+        locales/en.json
+        locales/hy.json
+        locales/[code].json
+    }
+
+    class BankAnalyzerFacade
+    class ExportStrategyFactory
+
+    DashboardApp *-- DashboardTab : creates tabs
+    DashboardTab <|-- VisualAnalyticsTab
+    DashboardTab <|-- TransactionExplorerTab
+    DashboardTab <|-- BudgetAnomaliesTab
+    DashboardApp --> BankAnalyzerFacade : Facade
+    DashboardTab --> BankAnalyzerFacade : Facade
+    DashboardApp o-- Translator : injected
+    DashboardTab --> Translator : all UI text
+    TransactionExplorerTab ..> ExportStrategyFactory : export
+
+    Translator o-- Locale : current + fallback
+    LocaleRepository ..> Locale : creates
+    LocaleRepository ..> LocaleFiles : reads *.json
+    Translator ..> LocaleRepository : from_directory
