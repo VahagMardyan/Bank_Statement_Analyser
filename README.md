@@ -255,6 +255,10 @@ Older formats are still accepted:
 
 You can also use **Manual Category Override** in the UI: new keywords are saved automatically and the model retrains.
 
-## Web Page
+## Testing
 
 Visit [this link](https://statementanalyser-vahagmardyan.streamlit.app/) to use the application from any other device.
+
+## Credits
+
+Flag emoji font: [Twemoji Country Flags](https://github.com/talkjs/country-flag-emoji-polyfill), built from [Twemoji](https://github.com/twitter/twemoji) graphics © Twitter, Inc. and other contributors, licensed under [CC-BY 4.0](https://creativecommons.org/licenses/by/4.0/). Used unchanged.
