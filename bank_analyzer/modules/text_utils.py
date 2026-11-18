@@ -89,17 +89,5 @@ class TextNormalizer:
         ]
 
 
-# Shared default instance + function aliases kept for existing callers/scripts.
+# Shared default instance.
 DEFAULT_NORMALIZER = TextNormalizer()
-
-
-def clean_text(text: str) -> str:
-    return DEFAULT_NORMALIZER.clean(text)
-
-
-def ml_text(text: str) -> str:
-    return DEFAULT_NORMALIZER.ml_text(text)
-
-
-def token_windows(text: str, max_len: int = 3) -> list[str]:
-    return TextNormalizer.token_windows(text, max_len)

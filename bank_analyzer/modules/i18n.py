@@ -39,9 +39,6 @@ DEFAULT_LOCALES_DIR = Path(__file__).resolve().parent.parent / "locales"
 DEFAULT_LANGUAGE = "hy"
 FALLBACK_LANGUAGE = "en"
 
-# Sections whose keys are DATA values (not UI text ids).
-VALUE_SECTIONS = ("categories", "transaction_types", "methods", "columns")
-
 
 @dataclass(frozen=True)
 class Locale:

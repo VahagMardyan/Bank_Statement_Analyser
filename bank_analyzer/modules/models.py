@@ -101,14 +101,6 @@ class KPIMetrics:
     def empty(cls) -> "KPIMetrics":
         return cls(0.0, 0.0, 0.0, 0)
 
-    def as_dict(self) -> dict[str, float | int]:
-        return {
-            "total_income": self.total_income,
-            "total_expenses": self.total_expenses,
-            "net_savings": self.net_savings,
-            "transaction_count": self.transaction_count,
-        }
-
 # Interfaces (Dependency Inversion + Interface Segregation)
 class ClassifierProtocol(Protocol):
     """Minimal interface the UI/facade needs from any classifier."""
@@ -150,3 +142,10 @@ class StatementLoaderProtocol(Protocol):
         file_path: str | Path,
         encoding: str | None = None,
     ) -> pd.DataFrame: ...
+
+@dataclass(frozen=True)
+class User:
+    id: int
+    email: str
+    display_name: str
+    language: str

@@ -90,9 +90,6 @@ class AnalyticsService:
         resampled["period"] = resampled["period"].dt.strftime("%Y-%m-%d")
         return resampled
 
-    def weekly_trends(self, df: pd.DataFrame) -> pd.DataFrame:
-        return self.monthly_trends(df, freq="W")
-
     def top_expenses(self, df: pd.DataFrame, n: int = 5) -> pd.DataFrame:
         return self.expenses(df).nlargest(n, "amount")
 
@@ -148,34 +145,3 @@ class AnalyticsService:
                 columns=["category", "budget", "actual", "remaining", "pct_used", "over_budget"]
             )
         return pd.DataFrame(rows).sort_values("pct_used", ascending=False).reset_index(drop=True)
-
-
-# Backward-compatible function aliases
-_DEFAULT = AnalyticsService()
-
-def get_category_summary(df: pd.DataFrame) -> pd.DataFrame:
-    return _DEFAULT.category_summary(df)
-
-
-def get_monthly_trends(df: pd.DataFrame, freq: str = "ME") -> pd.DataFrame:
-    return _DEFAULT.monthly_trends(df, freq)
-
-
-def get_weekly_trends(df: pd.DataFrame) -> pd.DataFrame:
-    return _DEFAULT.weekly_trends(df)
-
-
-def detect_anomalies(
-    df: pd.DataFrame,
-    threshold_std: float = 2.5,
-    detector: Optional[AnomalyDetector] = None,
-) -> pd.DataFrame:
-    return _DEFAULT.detect_anomalies(df, threshold_std, detector)
-
-
-def check_budget_limits(df: pd.DataFrame, budget_dict: dict[str, float]) -> pd.DataFrame:
-    return _DEFAULT.check_budget_limits(df, budget_dict)
-
-
-def compute_kpis(df: pd.DataFrame) -> dict[str, float | int]:
-    return _DEFAULT.compute_kpis(df).as_dict()

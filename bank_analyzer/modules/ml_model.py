@@ -13,6 +13,7 @@ and grow with every statement you load.
 """
 
 from __future__ import annotations
+from abc import ABC, abstractmethod
 
 import logging
 from dataclasses import dataclass
@@ -63,9 +64,18 @@ class Prediction:
     probability: float
     margin: float  # gap between best and second-best class
 
+class TrainingStore(ABC):
+    """Where the model's training rows are kept."""
+    @abstractmethod
+    def load(self) -> pd.DataFrame:
+        pass
+
+    @abstractmethod
+    def save(self, rows: pd.DataFrame) -> None:
+        pass
 
 # Repository for user training rows
-class TrainingExampleStore:
+class TrainingExampleStore(TrainingStore):
     """Persists rule-labelled rows and manual overrides as CSV."""
 
     def __init__(self, path: Optional[str | Path] = None) -> None:
@@ -98,7 +108,7 @@ class LearnedCategoryModel:
         store_path: Optional[str | Path] = None,
         min_probability: float = 0.25,
         min_margin: float = 0.20,
-        store: Optional[TrainingExampleStore] = None,
+        store: Optional[TrainingStore] = None,
         normalizer: TextNormalizer = DEFAULT_NORMALIZER,
     ) -> None:
         self._store = store or TrainingExampleStore(store_path)
@@ -113,8 +123,8 @@ class LearnedCategoryModel:
         self.user_rows = self._store.load()
 
     @property
-    def store_path(self) -> Path:
-        return self._store.path
+    def store_path(self) -> Optional[Path]:
+        return getattr(self._store, 'path', None)
 
     # RuleSet observer
     def on_rules_changed(self, rules: "RuleSet") -> None:
@@ -209,10 +219,6 @@ class LearnedCategoryModel:
         )
         self._clf.fit(X, frame["category"].to_numpy(), sample_weight=weights)
         return self
-
-    @property
-    def is_ready(self) -> bool:
-        return self._clf is not None
 
     @property
     def classes(self) -> list[str]:

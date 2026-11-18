@@ -19,8 +19,49 @@
     "upload": "Վերբեռնեք բանկային քաղվածքը (CSV / Excel / PDF)",
     "load_button": "Բեռնել և վերլուծել",
     "load_error": "Չհաջողվեց բեռնել քաղվածքը՝ {error}",
-    "load_success": "Բեռնվեց {count} գործարք։",
+    "load_success": "Բեռնվեց {count} գործարք, որից {added}-ը նոր։",
     "date_range": "Ժամանակահատված"
+  },
+  "auth": {
+    "login_tab": "Մուտք",
+    "register_tab": "Գրանցում",
+    "email": "Էլ․ փոստ",
+    "password": "Գաղտնաբառ",
+    "display_name": "Անուն",
+    "login_button": "Մուտք գործել",
+    "register_button": "Գրանցվել",
+    "logout_button": "Դուրս գալ",
+    "signed_in_as": "Մուտք եք գործել որպես",
+    "error_wrong_credentials": "Սխալ էլ․ փոստ կամ գաղտնաբառ",
+    "error_email_taken": "Այս էլ․ փոստով հաշիվ արդեն կա։",
+    "error_password_short": "Գաղտնաբառը պետք է լինի առնվազն 8 նիշ։",
+    "error_password_long": "Գաղտնաբառը չափազանց երկար է։",
+    "error_invalid_input": "Մուտքագրեք ճիշտ էլ. փոստ և անուն։",
+    "error_wrong_password": "Սխալ գաղտնաբառ։",
+    "error_empty_name": "Անունը չի կարող դատարկ լինել։",
+    "remember_me": "Հիշել ինձ"
+  },
+  "account": {
+    "header": "Հաշվի կարգավորումներ",
+    "rename_header": "Փոխել անունը",
+    "new_name": "Անուն",
+    "rename_button": "Պահպանել",
+    "rename_success": "Անունը թարմացվեց։",
+    "password_header": "Փոխել գաղտնաբառը",
+    "current_password": "Ընթացիկ գաղտնաբառ",
+    "new_password": "Նոր գաղտնաբառ",
+    "password_button": "Փոխել գաղտնաբառը",
+    "password_success": "Գաղտնաբառը փոխվեց։",
+    "clear_header": "Ջնջել պատմությունը",
+    "clear_help": "Կջնջվեն բոլոր վերբեռնված գործարքները և գտնված կրկնվող վճարումները։ Կատեգորիաների ուղղումները կմնան։",
+    "clear_button": "Ջնջել պատմությունը",
+    "clear_success": "Պատմությունը ջնջվեց։",
+    "delete_header": "Ջնջել հաշիվը",
+    "delete_help": "Կջնջվեն հաշիվը և դրա հետ պահված ամեն ինչ։ Համակարգից դուրս կգաք։",
+    "delete_button": "Ջնջել հաշիվը",
+    "delete_success": "Հաշիվը ջնջվեց։",
+    "confirm": "Հասկանում եմ, որ սա հետ բերել հնարավոր չէ",
+    "confirm_required": "Նախ նշեք հաստատման վանդակը։"
   },
   "metrics": {
     "total_income": "Ընդհանուր մուտքեր",
@@ -31,7 +72,8 @@
   "tabs": {
     "visual": "Վիզուալ վերլուծություն",
     "explorer": "Գործարքներ",
-    "budget": "Բյուջե և անոմալիաներ"
+    "budget": "Բյուջե և անոմալիաներ",
+    "recurring": "Կրկնվող վճարումներ"
   },
   "visual": {
     "pie_title": "Ծախսերի բաշխումն ըստ կատեգորիաների",
@@ -67,6 +109,18 @@
     "zscore_threshold": "Z-գնահատականի շեմ",
     "no_anomalies": "Այս շեմով անոմալիաներ չեն հայտնաբերվել։"
   },
+  "recurring": {
+    "none_found": "Կրկնվող վճարումներ դեռ չեն գտնվել։ Դրանք կերևան մոտ երեք ամսվա քաղվածքներից հետո։",
+    "dismiss_help": "Սա իրականում կանոնավոր վճարում չէ՞։ Թաքցրու, և այն այլևս չի հայտնվի։",
+    "dismiss_label": "Վճարում",
+    "dismiss_button": "Թաքցնել",
+    "periods": {
+      "weekly": "Շաբաթական",
+      "monthly": "Ամսական",
+      "quarterly": "Եռամսյակային",
+      "yearly": "Տարեկան"
+    }
+  },
   "welcome": {
     "info": "Սկսելու համար վերբեռնեք քաղվածքի ֆայլը (CSV, XLSX, XLS, PDF) կողային վահանակից։",
     "features_title": "Հնարավորություններ՝",
@@ -99,7 +153,12 @@
     "total_spend": "Ընդհանուր ծախս",
     "transaction_count": "Գործարքների քանակ",
     "pct_of_total": "Մասնաբաժին, %",
-    "period": "Ժամանակահատված"
+    "period": "Ժամանակահատված",
+    "name": "Վճարում",
+    "expected_amount": "Սպասվող գումար",
+    "last_paid": "Վերջին վճարում",
+    "next_due": "Հաջորդ վճարում",
+    "days_left": "Մնացել է (օր)"
   },
   "transaction_types": {
     "income": "Մուտք",

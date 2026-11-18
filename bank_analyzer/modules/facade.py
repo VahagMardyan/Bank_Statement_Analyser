@@ -8,10 +8,19 @@ from typing import Optional
 
 import pandas as pd
 
+from .recurring import RecurringDetector, RecurringRepository, payments_frame
+from .history import TransactionRepository
 from .analytics import AnalyticsService
 from .anomaly import AnomalyDetector
 from .classifier import TransactionClassifier
 from .ingestion import BankStatementLoader
+from .ml_model import LearnedCategoryModel
+from .mysql_repositories import (
+    MySqlRecurringRepository,
+    MySqlRuleRepository,
+    MySqlTrainingExampleStore,
+    MySqlTransactionRepository,
+)
 from .models import (
     ClassificationMethod,
     ClassifierProtocol,
@@ -32,10 +41,16 @@ class BankAnalyzerFacade:
         loader: StatementLoaderProtocol | None = None,
         classifier: ClassifierProtocol | None = None,
         analytics: AnalyticsService | None = None,
+        history: TransactionRepository | None = None,
+        recurring: RecurringRepository | None = None,
+        recurring_detector: RecurringDetector | None = None,
     ) -> None:
         self._loader: StatementLoaderProtocol = loader or BankStatementLoader()
         self._classifier: ClassifierProtocol = classifier or TransactionClassifier()
         self._analytics = analytics or AnalyticsService()
+        self._history = history
+        self._recurring = recurring
+        self._recurring_detector = recurring_detector or RecurringDetector()
 
     # Read-only access for tests and tools; UI code should use the methods below.
     @property
@@ -50,6 +65,18 @@ class BankAnalyzerFacade:
     def analytics(self) -> AnalyticsService:
         return self._analytics
 
+    @classmethod
+    def for_user(cls, user_id: int) -> "BankAnalyzerFacade":
+        """Facade whose rules and training data belong to one user."""
+        classifier = TransactionClassifier(
+            repository=MySqlRuleRepository(user_id),
+            model=LearnedCategoryModel(store=MySqlTrainingExampleStore(user_id))
+        )
+        return cls(
+            classifier=classifier,
+            history=MySqlTransactionRepository(user_id),
+            recurring=MySqlRecurringRepository(user_id),
+        )
 
     # load/classify
     def load_and_classify(
@@ -66,6 +93,45 @@ class BankAnalyzerFacade:
             if self._classifier.learn_from_dataframe(classified):
                 classified = self._classifier.reclassify_uncertain(classified)
         return classified
+
+    def save_transactions(self, df: pd.DataFrame) -> int:
+        """Store new rows and re-detect recurring payments."""
+        if self._history is None:
+            return 0
+        added = self._history.save(df)
+        self.refresh_recurring()
+        return added
+
+    def refresh_recurring(self) -> None:
+        if self._history is not None and self._recurring is not None:
+            self._recurring.sync(self._recurring_detector.detect(self._history.load()))
+
+    def recurring_payments(self, df: Optional[pd.DataFrame]) -> pd.DataFrame:
+        """Stored list with a database, otherwise detected from ``df`` on the fly."""
+        if self._recurring is not None:
+            return self._recurring.load()
+        return payments_frame(self._recurring_detector.detect(df))
+
+    def dismiss_recurring(self, payment_id: int) -> None:
+        if self._recurring is not None:
+            self._recurring.dismiss(payment_id)
+
+    def load_history(self) -> Optional[pd.DataFrame]:
+        """Everything stored for this user, or None without a history backend."""
+        if self._history is None:
+            return None
+        df = self._history.load()
+        return None if df.empty else df
+
+    def clear_history(self) -> None:
+        """Delete stored transactions and what was detected from them.
+
+        The user's category corrections (rules, ML examples) are kept.
+        """
+        if self._history is not None:
+            self._history.clear()
+        if self._recurring is not None:
+            self._recurring.clear()
 
     def get_categories(self) -> list[str]:
         return self._classifier.get_categories()
@@ -88,6 +154,13 @@ class BankAnalyzerFacade:
         out.loc[affected, "category"] = new_category
         out.loc[affected, "method"] = ClassificationMethod.MANUAL.value
         out.loc[affected, "confidence"] = 1.0
+
+        if self._history is not None and 'fingerprint' in out.columns:
+            self._history.update_category(
+                out.loc[affected, 'fingerprint'],
+                new_category,
+                ClassificationMethod.MANUAL.value
+            )
         return out
 
     # filters

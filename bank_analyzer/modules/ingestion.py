@@ -310,9 +310,6 @@ class BankStatementLoader(StatementLoaderTemplate):
         self._dates = DateParser()
         self._descriptions = DescriptionBuilder(self._columns)
 
-    def clean_description(self, text: str) -> str:
-        return self._normalizer.clean(text)
-
     # template steps
     def read_raw(self, path: Path, encoding: Optional[str]) -> pd.DataFrame:
         return self._readers.create(path).read(path, encoding)

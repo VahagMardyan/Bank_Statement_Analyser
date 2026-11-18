@@ -306,11 +306,6 @@ class IndividualEntrepreneurDetector:
         return any(len(t) > 4 and self.SURNAME_RE.search(t) for t in name)
 
 
-def looks_like_individual_entrepreneur(text: str) -> bool:
-    """Function alias kept for existing callers."""
-    return IndividualEntrepreneurDetector().matches(text)
-
-
 class IndividualEntrepreneurHandler(ClassificationHandler):
     """Person-named card payees get their own bucket instead of a wrong guess.
 

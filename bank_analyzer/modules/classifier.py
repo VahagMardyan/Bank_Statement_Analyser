@@ -101,10 +101,6 @@ class TransactionClassifier:
             return ClassificationResult.unclassified()
         return self._chain.handle(request)
 
-    def classify_description_details(self, description: str) -> tuple[str, float, str]:
-        """Return ``(category, confidence, method)`` for one description."""
-        return self.classify_description_result(description).as_tuple()
-
     def classify_description(self, description: str) -> str:
         return self.classify_description_result(description).category
 

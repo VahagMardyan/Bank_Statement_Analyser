@@ -19,8 +19,49 @@
     "upload": "Upload Bank Statement (CSV / Excel / PDF)",
     "load_button": "Load & Analyze",
     "load_error": "Failed to load statement: {error}",
-    "load_success": "Loaded {count} transactions.",
+    "load_success": "Loaded {count} transactions, {added} new.",
     "date_range": "Date Range"
+  },
+  "auth": {
+    "login_tab": "Sign in",
+    "register_tab": "Create account",
+    "email": "Email",
+    "password": "Password",
+    "display_name": "Name",
+    "login_button": "Sign in",
+    "register_button": "Create account",
+    "logout_button": "Sign out",
+    "signed_in_as": "Signed in as",
+    "error_wrong_credentials": "Wrong email or password",
+    "error_email_taken": "An account with this email already exists.",
+    "error_password_short": "Password must be at least 8 characters.",
+    "error_password_long": "Password is too long.",
+    "error_invalid_input": "Enter a valid email and a name.",
+    "error_wrong_password": "Wrong password.",
+    "error_empty_name": "Name can't be empty.",
+    "remember_me": "Keep me signed in"
+  },
+  "account": {
+    "header": "Account settings",
+    "rename_header": "Change name",
+    "new_name": "Name",
+    "rename_button": "Save",
+    "rename_success": "Name updated.",
+    "password_header": "Change password",
+    "current_password": "Current password",
+    "new_password": "New password",
+    "password_button": "Change password",
+    "password_success": "Password changed.",
+    "clear_header": "Clear history",
+    "clear_help": "Deletes all uploaded transactions and detected recurring payments. Your category corrections are kept.",
+    "clear_button": "Delete history",
+    "clear_success": "History cleared.",
+    "delete_header": "Delete account",
+    "delete_help": "Deletes your account and everything saved for it. You will be signed out.",
+    "delete_button": "Delete account",
+    "delete_success": "Account deleted.",
+    "confirm": "I understand this can't be undone",
+    "confirm_required": "Tick the confirmation box first."
   },
   "metrics": {
     "total_income": "Total Income",
@@ -31,7 +72,8 @@
   "tabs": {
     "visual": "Visual Analytics",
     "explorer": "Transaction Explorer",
-    "budget": "Budget & Anomalies"
+    "budget": "Budget & Anomalies",
+    "recurring": "Recurring Payments"
   },
   "visual": {
     "pie_title": "Expense Distribution by Category",
@@ -67,6 +109,18 @@
     "zscore_threshold": "Z-Score Threshold",
     "no_anomalies": "No anomalies detected at this threshold."
   },
+  "recurring": {
+    "none_found": "No recurring payments found yet. They show up after about three months of statements.",
+    "dismiss_help": "Not actually a regular payment? Hide it and it won't come back.",
+    "dismiss_label": "Payment",
+    "dismiss_button": "Hide",
+    "periods": {
+      "weekly": "Weekly",
+      "monthly": "Monthly",
+      "quarterly": "Quarterly",
+      "yearly": "Yearly"
+    }
+  },
   "welcome": {
     "info": "Upload a statement file (CSV, XLSX, XLS, PDF) using the sidebar to get started.",
     "features_title": "Supported features:",
@@ -99,7 +153,12 @@
     "total_spend": "Total spend",
     "transaction_count": "Transactions",
     "pct_of_total": "Share, %",
-    "period": "Period"
+    "period": "Period",
+    "name": "Payment",
+    "expected_amount": "Expected amount",
+    "last_paid": "Last paid",
+    "next_due": "Next due",
+    "days_left": "Days left"
   },
   "transaction_types": {
     "income": "Income",
