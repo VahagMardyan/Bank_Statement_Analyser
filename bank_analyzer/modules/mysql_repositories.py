@@ -64,8 +64,8 @@ class MySqlRuleRepository(RuleRepository):
             conn.execute(
                 text(
                     "INSERT INTO user_rules (user_id, category, keyword) "
-                    "VALUES (:uid, :cat, :kw) AS new "
-                    "ON DUPLICATE KEY UPDATE category = new.category"
+                    "VALUES (:uid, :cat, :kw) "
+                    "ON DUPLICATE KEY UPDATE category = VALUES(category)"
                 ), personal
             )
 
@@ -236,11 +236,11 @@ class MySqlRecurringRepository(RecurringRepository):
                         "INSERT INTO recurring_payments (user_id, name, category, "
                         "expected_amount, interval_days, last_paid, next_due, source, active) "
                         "VALUES (:uid, :name, :cat, :amount, :interval, :last_paid, "
-                        ":next_due, 'detected', TRUE) AS new "
-                        "ON DUPLICATE KEY UPDATE category = new.category, "
-                        "expected_amount = new.expected_amount, "
-                        "interval_days = new.interval_days, last_paid = new.last_paid, "
-                        "next_due = new.next_due, active = TRUE"
+                        ":next_due, 'detected', TRUE) "
+                        "ON DUPLICATE KEY UPDATE category = VALUES(category), "
+                        "expected_amount = VALUES(expected_amount), "
+                        "interval_days = VALUES(interval_days), last_paid = VALUES(last_paid), "
+                        "next_due = VALUES(next_due), active = TRUE"
                     ),
                     records,
                 )
@@ -284,10 +284,10 @@ class MySqlRecurringRepository(RecurringRepository):
                     "INSERT INTO recurring_payments (user_id, name, category, "
                     "expected_amount, interval_days, last_paid, next_due, source, active) "
                     "VALUES (:uid, :name, :cat, :amount, :interval, NULL, :next_due, "
-                    "'manual', TRUE) AS new "
-                    "ON DUPLICATE KEY UPDATE category = new.category, "
-                    "expected_amount = new.expected_amount, interval_days = new.interval_days, "
-                    "next_due = new.next_due, source = 'manual', active = TRUE, dismissed = FALSE"
+                    "'manual', TRUE) "
+                    "ON DUPLICATE KEY UPDATE category = VALUES(category), "
+                    "expected_amount = VALUES(expected_amount), interval_days = VALUES(interval_days), "
+                    "next_due = VALUES(next_due), source = 'manual', active = TRUE, dismissed = FALSE"
                 ),
                 {
                     "uid": self.user_id, "name": name[:255], "cat": category,
@@ -334,8 +334,8 @@ class MySqlBudgetRepository(BudgetRepository):
         with self._engine.begin() as conn:
             conn.execute(
                 text("INSERT INTO budgets (user_id, category, monthly_limit) "
-                     "VALUES (:uid, :cat, :limit) AS new "
-                     "ON DUPLICATE KEY UPDATE monthly_limit = new.monthly_limit" 
+                     "VALUES (:uid, :cat, :limit) "
+                     "ON DUPLICATE KEY UPDATE monthly_limit = VALUES(monthly_limit)" 
                     ),
                     records
             )
