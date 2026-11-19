@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Optional
 
 import bcrypt
@@ -16,6 +16,13 @@ from .models import User
 
 MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_BYTES = 72 # bcrypt's hard limit
+
+@dataclass(frozen=True)
+class NotificationSettings:
+    enabled: bool
+    days_before: int   # remind this many days before a recurring payment
+    language: str      # language of the emails
+
 
 class AuthError(Exception):
     """Carries a locale key; the UI translates it."""
@@ -41,6 +48,12 @@ class UserRepository(ABC):
 
     @abstractmethod
     def update_password_hash(self, user_id: int, password_hash: str) -> None: ...
+
+    @abstractmethod
+    def get_notification_settings(self, user_id: int) -> NotificationSettings: ...
+
+    @abstractmethod
+    def update_notification_settings(self, user_id: int, settings: NotificationSettings) -> None: ...
 
     @abstractmethod
     def delete(self, user_id: int) -> None:
@@ -121,6 +134,27 @@ class MySqlUserRepository(UserRepository):
     def delete(self, user_id: int) -> None:
         self._execute("DELETE FROM users WHERE id = :id", {"id": user_id})
 
+    def get_notification_settings(self, user_id: int) -> NotificationSettings:
+        with self._engine.connect() as conn:
+            row = conn.execute(
+                text(
+                    "SELECT notification_enabled, remind_days_before, language "
+                    "FROM users WHERE id = :id"
+                ),
+                {"id": user_id},
+            ).first()
+        if row is None:
+            return NotificationSettings(False, 3, "hy")
+        return NotificationSettings(bool(row[0]), int(row[1]), str(row[2]))
+
+    def update_notification_settings(self, user_id: int, settings: NotificationSettings) -> None:
+        self._execute(
+            "UPDATE users SET notification_enabled = :on, remind_days_before = :days, "
+            "language = :lang WHERE id = :id",
+            {"on": settings.enabled, "days": settings.days_before,
+             "lang": settings.language, "id": user_id},
+        )
+
     def _execute(self, sql: str, params: dict) -> None:
         with self._engine.begin() as conn:
             conn.execute(text(sql), params)
@@ -198,3 +232,11 @@ class AuthService:
             raise AuthError("auth.error_password_short")
         if len(password.encode("utf-8")) > MAX_PASSWORD_BYTES:
             raise AuthError("auth.error_password_long")
+
+    def notification_settings(self, user: User) -> NotificationSettings:
+        return self._users.get_notification_settings(user.id)
+
+    def save_notification_settings(self, user: User, settings: NotificationSettings) -> None:
+        days = max(0, min(int(settings.days_before), 30))
+        self._users.update_notification_settings(user.id, replace(settings, days_before=days))
+

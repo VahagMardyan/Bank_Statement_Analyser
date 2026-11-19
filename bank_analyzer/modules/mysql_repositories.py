@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pandas as pd
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
@@ -13,10 +15,12 @@ from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 from .db import get_engine
 from .ml_model import TRAINING_COLUMNS, TrainingStore
 from .rules import JsonRuleRepository, RuleRepository, RuleSet
+from .budgets import BudgetRepository
 
 from .recurring import (
     PAYMENT_COLUMNS,
     PERIOD_BY_DAYS,
+    Period,
     RecurringPayment,
     RecurringRepository
 )
@@ -246,7 +250,7 @@ class MySqlRecurringRepository(RecurringRepository):
             df = pd.read_sql(
                 text(
                     "SELECT id, name, category, expected_amount, interval_days, "
-                    "last_paid, next_due FROM recurring_payments "
+                    "last_paid, next_due, source FROM recurring_payments "
                     "WHERE user_id = :uid AND active AND NOT dismissed "
                     "ORDER BY next_due"
                 ),
@@ -271,6 +275,27 @@ class MySqlRecurringRepository(RecurringRepository):
                 {"uid": self.user_id},
             )
 
+    def add_manual(
+        self, name: str, category: str, amount: float, period: Period, next_due: date
+    ) -> None:
+        with self._engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO recurring_payments (user_id, name, category, "
+                    "expected_amount, interval_days, last_paid, next_due, source, active) "
+                    "VALUES (:uid, :name, :cat, :amount, :interval, NULL, :next_due, "
+                    "'manual', TRUE) AS new "
+                    "ON DUPLICATE KEY UPDATE category = new.category, "
+                    "expected_amount = new.expected_amount, interval_days = new.interval_days, "
+                    "next_due = new.next_due, source = 'manual', active = TRUE, dismissed = FALSE"
+                ),
+                {
+                    "uid": self.user_id, "name": name[:255], "cat": category,
+                    "amount": round(float(amount), 2), "interval": period.days,
+                    "next_due": next_due,
+                },
+            )
+
     def dismiss(self, payment_id: int) -> None:
         with self._engine.begin() as conn:
             conn.execute(
@@ -280,3 +305,38 @@ class MySqlRecurringRepository(RecurringRepository):
                 ),
                 {"id": payment_id, "uid": self.user_id},
             )
+
+class MySqlBudgetRepository(BudgetRepository):
+    """One user's monthly limits in MySQL."""
+
+    def __init__(self, user_id: int, engine: Engine | None = None) -> None:
+        self.user_id = user_id
+        self._engine = engine or get_engine()
+
+    def load(self) -> dict[str, float]:
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                text('SELECT category, monthly_limit FROM budgets WHERE user_id=:uid;'),
+                {'uid': self.user_id}
+            ).all()
+
+        return { category: float(limit) for category, limit in rows }
+
+    def save(self, budgets: dict[str, float]) -> None:
+        records = [
+            { 'uid': self.user_id, 'cat': category, 'limit': round(float(value), 2) }
+            for category, value in budgets.items()
+        ]
+
+        if not records:
+            return
+
+        with self._engine.begin() as conn:
+            conn.execute(
+                text("INSERT INTO budgets (user_id, category, monthly_limit) "
+                     "VALUES (:uid, :cat, :limit) AS new "
+                     "ON DUPLICATE KEY UPDATE monthly_limit = new.monthly_limit" 
+                    ),
+                    records
+            )
+

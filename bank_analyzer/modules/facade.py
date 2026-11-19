@@ -4,23 +4,20 @@ from __future__ import annotations
 
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Any, Callable, Optional
 
 import pandas as pd
 
-from .recurring import RecurringDetector, RecurringRepository, payments_frame
-from .history import TransactionRepository
+from .advisor import Advice, MonthForecast, SpendingAdvisor
+from .alerts import Alert, SuspiciousActivityDetector
 from .analytics import AnalyticsService
 from .anomaly import AnomalyDetector
+from .budgets import BudgetRepository
 from .classifier import TransactionClassifier
+from .constants import DEFAULT_BUDGETS
+from .history import TransactionRepository
 from .ingestion import BankStatementLoader
 from .ml_model import LearnedCategoryModel
-from .mysql_repositories import (
-    MySqlRecurringRepository,
-    MySqlRuleRepository,
-    MySqlTrainingExampleStore,
-    MySqlTransactionRepository,
-)
 from .models import (
     ClassificationMethod,
     ClassifierProtocol,
@@ -28,6 +25,21 @@ from .models import (
     SelfTrainingClassifier,
     StatementLoaderProtocol,
 )
+from .mysql_repositories import (
+    MySqlBudgetRepository,
+    MySqlRecurringRepository,
+    MySqlRuleRepository,
+    MySqlTrainingExampleStore,
+    MySqlTransactionRepository,
+)
+from .recurring import (
+    PERIOD_BY_KEY,
+    RecurringDetector,
+    RecurringRepository,
+    payments_frame,
+    roll_forward,
+)
+
 
 class BankAnalyzerFacade:
     """Facade + Dependency Injection over loader, classifier and analytics.
@@ -44,6 +56,9 @@ class BankAnalyzerFacade:
         history: TransactionRepository | None = None,
         recurring: RecurringRepository | None = None,
         recurring_detector: RecurringDetector | None = None,
+        budgets: BudgetRepository | None = None,
+        advisor: SpendingAdvisor | None = None,
+        alert_detector: SuspiciousActivityDetector | None = None,
     ) -> None:
         self._loader: StatementLoaderProtocol = loader or BankStatementLoader()
         self._classifier: ClassifierProtocol = classifier or TransactionClassifier()
@@ -51,6 +66,21 @@ class BankAnalyzerFacade:
         self._history = history
         self._recurring = recurring
         self._recurring_detector = recurring_detector or RecurringDetector()
+        self._budgets = budgets
+        self._advisor = advisor or SpendingAdvisor()
+        self._alert_detector = alert_detector or SuspiciousActivityDetector()
+        # Stored history and recurring list, kept between Streamlit reruns.
+        # Every method that changes stored data calls _invalidate().
+        self._cache: dict[str, Any] = {}
+
+    def _cached(self, key: str, load: Callable[[], Any]) -> Any:
+        if key not in self._cache:
+            self._cache[key] = load()
+        value = self._cache[key]
+        return value.copy() if isinstance(value, pd.DataFrame) else value
+
+    def _invalidate(self) -> None:
+        self._cache.clear()
 
     # Read-only access for tests and tools; UI code should use the methods below.
     @property
@@ -76,6 +106,7 @@ class BankAnalyzerFacade:
             classifier=classifier,
             history=MySqlTransactionRepository(user_id),
             recurring=MySqlRecurringRepository(user_id),
+            budgets = MySqlBudgetRepository(user_id),
         )
 
     # load/classify
@@ -99,28 +130,42 @@ class BankAnalyzerFacade:
         if self._history is None:
             return 0
         added = self._history.save(df)
+        self._invalidate()
         self.refresh_recurring()
         return added
 
     def refresh_recurring(self) -> None:
         if self._history is not None and self._recurring is not None:
             self._recurring.sync(self._recurring_detector.detect(self._history.load()))
+            self._invalidate()
 
     def recurring_payments(self, df: Optional[pd.DataFrame]) -> pd.DataFrame:
         """Stored list with a database, otherwise detected from ``df`` on the fly."""
         if self._recurring is not None:
-            return self._recurring.load()
+            return self._cached("recurring", self._recurring.load)
         return payments_frame(self._recurring_detector.detect(df))
+
+    def upcoming_payments(self, df: Optional[pd.DataFrame], today: date) -> pd.DataFrame:
+        """Recurring payments with stale due dates moved to the next one ahead."""
+        return roll_forward(self.recurring_payments(df), today)
+
+    def add_recurring(
+        self, name: str, category: str, amount: float, period_key: str, next_due: date
+    ) -> None:
+        if self._recurring is not None:
+            self._recurring.add_manual(name, category, amount, PERIOD_BY_KEY[period_key], next_due)
+            self._invalidate()
 
     def dismiss_recurring(self, payment_id: int) -> None:
         if self._recurring is not None:
             self._recurring.dismiss(payment_id)
+            self._invalidate()
 
     def load_history(self) -> Optional[pd.DataFrame]:
         """Everything stored for this user, or None without a history backend."""
         if self._history is None:
             return None
-        df = self._history.load()
+        df = self._cached("history", self._history.load)
         return None if df.empty else df
 
     def clear_history(self) -> None:
@@ -132,6 +177,7 @@ class BankAnalyzerFacade:
             self._history.clear()
         if self._recurring is not None:
             self._recurring.clear()
+        self._invalidate()
 
     def get_categories(self) -> list[str]:
         return self._classifier.get_categories()
@@ -161,6 +207,7 @@ class BankAnalyzerFacade:
                 new_category,
                 ClassificationMethod.MANUAL.value
             )
+            self._invalidate()
         return out
 
     # filters
@@ -188,6 +235,44 @@ class BankAnalyzerFacade:
         self, df: pd.DataFrame, budgets: dict[str, float]
     ) -> pd.DataFrame:
         return self._analytics.check_budget_limits(df, budgets)
+
+    def get_budgets(self) -> dict[str, float]:
+        """Default limits, overwritten by whatever this user saved."""
+        saved = self._budgets.load() if self._budgets is not None else {}
+        return {**{c: float(v) for c, v in DEFAULT_BUDGETS.items()}, **saved}
+
+    def save_budgets(self, budgets: dict[str, float]) -> None:
+        if self._budgets is not None:
+            self._budgets.save(budgets)
+
+    # advisor and alerts work on the whole stored history, not the date filter
+    def _full_history(self, df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
+        return self.load_history() if self._history is not None else df
+
+    def spending_advice(self, df: Optional[pd.DataFrame]) -> list[Advice]:
+        history = self._full_history(df)
+        recurring = self.recurring_payments(history)
+        names = recurring["name"] if not recurring.empty else []
+        return self._advisor.advise(history, self.get_budgets(), names)
+
+    def month_forecast(self, df: Optional[pd.DataFrame]) -> Optional[MonthForecast]:
+        history = self._full_history(df)
+        return self._advisor.forecast(history, self.recurring_payments(history))
+
+    def suspicious_activity(self, df: Optional[pd.DataFrame]) -> list[Alert]:
+        history = self._full_history(df)
+        recurring = self.recurring_payments(history)
+        names = recurring["name"] if not recurring.empty else []
+        return self._alert_detector.detect(history, names)
+
+    @staticmethod
+    def months(df: pd.DataFrame) -> list[pd.Period]:
+        """Months that have transactions, newest first."""
+        return sorted(df['date'].dt.to_period('M').unique(), reverse=True)
+
+    @staticmethod
+    def filter_month(df: pd.DataFrame, month: pd.Period) -> pd.DataFrame:
+        return df[df['date'].dt.to_period('M') == month].copy()
 
     def detect_anomalies(
         self,

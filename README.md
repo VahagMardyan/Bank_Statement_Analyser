@@ -2,7 +2,7 @@
 
 A Streamlit app that reads bank statements (CSV, XLS, XLSX, PDF), puts every transaction into a spending category and shows where the money went. It understands Armenian, English and Russian bank exports. Categories come from rules plus a machine learning model that learns from your own statements and corrections.
 
-Each person has their own account. Uploaded transactions are saved in MySQL, so the dashboard shows your whole history, not just the last file, and uploading the same statement twice doesn't create duplicates. From that history the app finds recurring payments (subscriptions, rent, utilities) and the date each one is due next.
+Each person has their own account. Uploaded transactions are saved in MySQL, so the dashboard shows your whole history, not just the last file, and uploading the same statement twice doesn't create duplicates. From that history the app finds recurring payments (subscriptions, rent, utilities) and the date each one is due next. It also forecasts the month's spending, warns when a category is heading over budget, flags payments that look suspicious, and can email reminders before payments are due.
 
 The interface is in Armenian and English. Another language is one more JSON file.
 
@@ -14,7 +14,7 @@ The project follows SOLID principles and implements these design patterns:
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Facade**                          | `BankAnalyzerFacade` (`facade.py`)                                                                | One entry point (load → classify → learn → analyze) for the UI. The UI never reaches into the subsystems.                                             |
 | **Template Method**                 | `StatementLoaderTemplate.load` (`ingestion.py`), `ExportStrategy.export` (`exporters.py`)     | Fixed pipeline: read file → standardize → drop invalid rows → finalize. Subclasses supply the steps.                                                  |
-| **Strategy**                        | `StatementReader`, `PdfLayoutStrategy`, `ExportStrategy`, `AnomalyDetector`, `RecurringDetector` | Interchangeable algorithms for file formats (PDF / Excel / CSV), PDF layouts (borderless / table), exports (CSV / Excel) and anomaly detection (Z-score) |
+| **Strategy**                        | `StatementReader`, `PdfLayoutStrategy`, `ExportStrategy`, `AnomalyDetector`, `RecurringDetector`, `AlertRule`, `NotificationChannel` | Interchangeable algorithms for file formats (PDF / Excel / CSV), PDF layouts (borderless / table), exports (CSV / Excel) and anomaly detection (Z-score) |
 | **Factory**                         | `StatementReaderFactory`, `ExportStrategyFactory`                                                 | Picks the right reader for a file and the right exporter for a UI choice                                                                                 |
 | **Registry (decorator)**            | `@ExportStrategyFactory.register("CSV")`                                                            | A new export format is one new class; the factory is never edited (Open/Closed)                                                                          |
 | **Chain of Responsibility**         | `ClassificationHandler` (`classification_handlers.py`)                                            | Primary description → merchant → keyword → individual entrepreneur → ML model → fuzzy match → `Other`                                            |
@@ -78,11 +78,23 @@ UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/`
 │   │   ├── recurring.py                 # RecurringDetector, Period, RecurringPayment, RecurringRepository
 │   │   ├── users.py                     # User storage, bcrypt password hashing, AuthService
 │   │   ├── remember.py                  # "Keep me signed in" tokens
+│   │   ├── budgets.py                   # BudgetRepository interface (monthly limits per category)
+│   │   ├── advisor.py                   # SpendingAdvisor: month status, advice, end-of-month forecast
+│   │   ├── alerts.py                    # SuspiciousActivityDetector and its AlertRule strategies
+│   │   ├── notifications.py             # Email reminders: channels, notification log, ReminderService
+│   │   └── report.py                    # Monthly .xlsx report (one sheet per table)
 │   │   ├── i18n.py                      # Translator, LocaleRepository, missing-translation checker
 │   │   ├── models.py                    # Enums, dataclasses, protocols
 │   │   └── constants.py                 # Default budgets, income categories
 │   ├── .env                             # Database settings (not in git)
-│   ├── app.py                           # Streamlit UI: AuthPage, AccountPanel, DashboardApp, one class per tab
+│   ├── ui/
+│   │   ├── auth_page.py                 # AuthPage: sign in / create account
+│   │   ├── dashboard.py                 # DashboardApp: sidebar, KPI row, tab container
+│   │   ├── tabs.py                      # DashboardTab (ABC) + one class per tab
+│   │   ├── account_panel.py             # AccountPanel: current user, account settings, sign out
+│   │   └── common.py                    # Session keys, cookies, flash messages, language switch
+│   ├── app.py                           # Streamlit entry point: shows the login page or the dashboard
+│   ├── send_reminders.py                # Daily job: sends reminder emails (or prints them with --dry-run)
 │   └── evaluate_classifier.py           # Accuracy evaluation + threshold tuning
 ├── requirements.txt
 ├── README.md
@@ -154,8 +166,10 @@ The app opens in your browser (default: http://localhost:8501). On Windows, `run
 | **Metrics**              | Total income, expenses, net savings, transaction count                                        |
 | **Visual Analytics**     | Donut chart, monthly trends, top 5 expenses                                                   |
 | **Transaction Explorer** | Filterable table with `confidence` and `method` columns, export, manual category override |
-| **Budget & Anomalies**   | Budget progress bars, Z-score anomaly detection                                               |
-| **Recurring Payments**   | Detected regular payments with amount, period, last and next payment date, days left; wrong ones can be hidden |
+| **Budget & Anomalies**   | Month selector, saved monthly limits per category, progress bars, monthly .xlsx report, Z-score anomaly detection |
+| **Recurring Payments**   | Detected regular payments with amount, period, last and next payment date, days left; wrong ones can be hidden, missing ones added by hand |
+| **Advisor**              | This month so far, recurring payments still due, end-of-month estimate, budget warnings |
+| **Alerts**               | Possible duplicate charges, large first payments to new merchants, price increases, night payments |
 
 ## Accounts and stored data
 
@@ -178,6 +192,8 @@ So one person's corrections never change how another person's transactions are c
 Uploading a statement saves only the rows that aren't stored yet. Each row gets a SHA-256 fingerprint from its date, amount, type and description, and `(user_id, fingerprint)` is unique in the table. If the same payment appears twice in one file (two bus tickets in the same minute), the second copy also gets its position in the file mixed in, so both are kept, and re-uploading the file still matches. One limit: the same month exported once as PDF and once as CSV can be saved twice, because the description text or the time can differ between formats.
 
 The upload itself goes to a temporary file that is deleted right after reading, so real statements don't stay on disk.
+
+The facade keeps the loaded history and recurring list in memory between Streamlit reruns, and drops them whenever something changes them (an upload, an override, clearing history, adding or hiding a recurring payment). So the Advisor, Alerts and report don't query MySQL again on every click. If the same account is open in two browsers, an upload in one shows up in the other after signing in again.
 
 ### Account settings
 
@@ -211,6 +227,81 @@ If something isn't really a regular payment, hide it in the tab. Hidden payments
 
 `data/fake_statement_recurring_demo.csv` is a made-up statement for checking this (May 1 to Nov 15, 2026). The app should find 9 recurring payments: rent, Netflix, Telegram Premium, Ucom internet, ENA electricity, Gazprom gas, YouTube Premium (with August skipped), a weekly gym class and quarterly car insurance. Spotify (stopped in July), the salary and the random supermarket, taxi and cafe spending should not show up.
 
+## Budgets
+
+Limits are monthly and saved per user (`budgets` table). The Budget tab compares them with one month at a time, the latest by default, because comparing a monthly limit with several months of history would put every category over budget. Categories you never changed use the defaults from `DEFAULT_BUDGETS` in `modules/constants.py`.
+
+The same tab has a **Download the report** button. It builds an Excel file for the selected month with these sheets: summary, categories, budgets, transactions, recurring payments, and the month's alerts and advice when there are any. The file is in the language you have on, and it's built only when you click.
+
+## Advisor
+
+The Advisor tab looks at the month of your latest transaction (statements usually arrive late, so this isn't always the calendar month).
+
+The forecast has three parts:
+
+- what you've spent so far
+- everyday spending for the rest of the month, at the current daily pace
+- recurring payments still due this month, each at its expected amount
+
+Recurring payments and large one-off purchases (above both 30,000 AMD and the 95th percentile of your payments) are counted once and aren't extended at the daily pace. Otherwise a rent paid on the 1st, or one laptop, would be "projected" again for every remaining day. Transfers and cash withdrawals aren't counted as spending. Before day 7 there's no pace projection, because a few days of data say very little.
+
+Advice comes in three kinds, most serious first:
+
+1. already over the monthly budget
+2. not over yet, but will be at this pace (by at least 5,000 AMD)
+3. heading 25% or more above your usual spending for that category, where "usual" is the average of up to 3 earlier months
+
+The thresholds are constructor arguments of `SpendingAdvisor`.
+
+## Alerts
+
+The Alerts tab shows payments from the last 90 days of your history that are worth a second look. Each check is its own `AlertRule` class, so a new check is one new class:
+
+| Rule | Fires when |
+| --- | --- |
+| `DuplicateChargeRule` | The same merchant charges the same amount (5,000 AMD or more) again within 10 minutes, or on the same day when the statement has no times |
+| `NewMerchantLargeRule` | The first payment to a merchant is above both 30,000 AMD and the 95th percentile of your payments. Known recurring payments don't count |
+| `PriceIncreaseRule` | A recurring payment's latest amount is 15% or more above its earlier median (utilities skipped, their amounts always vary) |
+| `NightPaymentRule` | A payment of 10,000 AMD or more between 01:00 and 05:00 (only when the statement has times) |
+
+These are hints, not proof of fraud, and the tab says so.
+
+## Email reminders
+
+Turn reminders on under **Account settings → Email reminders** and choose how many days before a payment to be reminded (3 by default). Emails go out in the language the app was in when you saved the setting.
+
+`send_reminders.py` sends one email per user with:
+
+- recurring payments due within that many days
+- budget warnings for the current month (over budget, or heading over)
+
+`notifications_log` records every reminder and warning sent, so nothing is sent twice even if the script runs several times a day. Due dates of manual payments always move to the next one ahead. Detected payments that are a few days overdue keep their date until the statement with that payment is uploaded.
+
+Add your mail settings to `bank_analyzer/.env`. For Gmail you need an [app password](https://support.google.com/accounts/answer/185833), not your normal password:
+
+```
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASSWORD=your_app_password
+SMTP_FROM=you@gmail.com
+```
+
+Try it without sending anything first. `--dry-run` prints the emails and doesn't record them, and `--today` pretends it's another day:
+
+```powershell
+python send_reminders.py --dry-run
+python send_reminders.py --dry-run --today 2026-11-28
+```
+
+To run it every day on Windows, create a scheduled task (adjust the paths):
+
+```powershell
+schtasks /Create /SC DAILY /ST 09:00 /TN "BankAnalyzerReminders" /TR "C:\Users\user\Desktop\Course_Project\bank_analyzer\.venv\Scripts\python.exe C:\Users\user\Desktop\Course_Project\bank_analyzer\send_reminders.py"
+```
+
+The computer has to be on at that time. MySQL has to be running too, since the script reads the same database as the app.
+
 ## Languages
 
 Everything on screen comes from `locales/<code>.json`: labels, messages, table headers, category names, transaction types (Մուտք / Ելք), method names, bank names and the currency word. The data itself always stays in English (category keys, `income` / `expense`), so analytics, budgets and the ML model never depend on the language.
@@ -239,6 +330,8 @@ The language switch is on the login page too, and the choice is kept after signi
 4. Correct a wrong row with **Manual Category Override**, then reload the file: the correction is remembered
 5. Upload the same file again: the message should say 0 new transactions
 6. Upload `data/fake_statement_recurring_demo.csv` and open the **Recurring Payments** tab (see [Recurring payments](#recurring-payments) for the expected list)
+7. Open **Advisor**: with the default budgets it warns about Insurance (a 45,000 quarterly payment against a 20,000 monthly limit) and Supermarket
+8. In **Budget & Anomalies**, pick a month and download its report
 
 ## Supported banks and formats
 

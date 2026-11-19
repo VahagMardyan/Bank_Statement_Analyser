@@ -61,7 +61,13 @@
     "delete_button": "Delete account",
     "delete_success": "Account deleted.",
     "confirm": "I understand this can't be undone",
-    "confirm_required": "Tick the confirmation box first."
+    "confirm_required": "Tick the confirmation box first.",
+    "notify_header": "Email reminders",
+    "notify_help": "Sent to {email}: a reminder before each recurring payment, and a warning when a category goes over its budget. Emails use the language you have on now.",
+    "notify_enabled": "Send me reminders",
+    "notify_days": "Days before a payment",
+    "notify_button": "Save",
+    "notify_success": "Reminder settings saved."
   },
   "metrics": {
     "total_income": "Total Income",
@@ -73,7 +79,9 @@
     "visual": "Visual Analytics",
     "explorer": "Transaction Explorer",
     "budget": "Budget & Anomalies",
-    "recurring": "Recurring Payments"
+    "recurring": "Recurring Payments",
+    "advisor": "Advisor",
+    "alerts": "Alerts"
   },
   "visual": {
     "pie_title": "Expense Distribution by Category",
@@ -107,7 +115,11 @@
     "over_budget": "Over budget by {amount} {currency}",
     "anomaly_header": "Anomaly Detection",
     "zscore_threshold": "Z-Score Threshold",
-    "no_anomalies": "No anomalies detected at this threshold."
+    "no_anomalies": "No anomalies detected at this threshold.",
+    "month": "Month",
+    "edit": "Edit monthly limits",
+    "save": "Save limits",
+    "saved": "Limits saved."
   },
   "recurring": {
     "none_found": "No recurring payments found yet. They show up after about three months of statements.",
@@ -119,6 +131,52 @@
       "monthly": "Monthly",
       "quarterly": "Quarterly",
       "yearly": "Yearly"
+    },
+    "sources": {
+      "detected": "From statements",
+      "manual": "Added by you"
+    },
+    "add_header": "Add a payment by hand",
+    "add_help": "For regular payments that don't appear in your statements: cash, another bank, someone else's card.",
+    "add_name": "Name",
+    "add_category": "Category",
+    "add_amount": "Amount ({currency})",
+    "add_period": "How often",
+    "add_next_due": "Next payment date",
+    "add_button": "Add",
+    "add_success": "Payment added.",
+    "add_error": "Enter a name and an amount above zero."
+  },
+  "advisor": {
+    "no_data": "Upload a statement to get a forecast and advice.",
+    "header_forecast": "This month ({month})",
+    "as_of": "Based on transactions up to {date}: day {day} of {days}.",
+    "spent": "Spent so far",
+    "upcoming": "Recurring payments still due ({count})",
+    "expected": "Expected by the end of the month",
+    "forecast_help": "Everyday spending is extended at its current daily pace. Recurring payments are counted once, on their due date. Transfers and cash withdrawals aren't counted as spending.",
+    "header_advice": "Advice",
+    "early": "It's only day {day} of the month, so advice is based on what's already spent, without a projection.",
+    "over_budget": "**{category}**: already {excess} {currency} over the {reference} {currency} budget. At this pace the month will end at about {projected} {currency}.",
+    "budget_pace": "**{category}**: {spent} {currency} spent so far. At this pace it will reach about {projected} {currency}, which is {excess} {currency} over the {reference} {currency} budget.",
+    "above_usual": "**{category}**: heading for about {projected} {currency} this month, {pct}% more than your usual {reference} {currency}.",
+    "all_good": "Nothing to worry about this month: every category is within its budget and close to your usual spending."
+  },
+  "alerts": {
+    "intro": "Payments from the last 90 days that are worth a second look. These are hints, not proof of fraud. If you don't recognise a payment, contact your bank.",
+    "none": "No suspicious payments found.",
+    "kinds": {
+      "duplicate_charge": "Possible duplicate charge",
+      "new_merchant_large": "Large payment to a new merchant",
+      "price_increase": "Price went up",
+      "night_payment": "Payment at night"
+    },
+    "messages": {
+      "duplicate_charge": "Charged again {minutes} min after an identical payment.",
+      "duplicate_same_day": "A second identical charge on the same day.",
+      "new_merchant_large": "First payment to this merchant, and above {threshold} {currency} (95% of your payments are smaller).",
+      "price_increase": "Usually {before} {currency}, now {amount} {currency} (+{pct}%).",
+      "night_payment": "Paid at {time}."
     }
   },
   "welcome": {
@@ -158,7 +216,10 @@
     "expected_amount": "Expected amount",
     "last_paid": "Last paid",
     "next_due": "Next due",
-    "days_left": "Days left"
+    "days_left": "Days left",
+    "kind": "Type",
+    "detail": "Details",
+    "source": "Source"
   },
   "transaction_types": {
     "income": "Income",
@@ -201,5 +262,32 @@
     "Fitness and Sport": "Fitness and Sport",
     "Individual Entrepreneurs": "Individual Entrepreneurs",
     "Other": "Other"
+  },
+  "email": {
+    "subject": "Bank Statement Analyzer: upcoming payments",
+    "greeting": "Hi {name},",
+    "reminders_header": "Coming up:",
+    "reminder_line": "{name}: about {amount} {currency}, {when} ({date})",
+    "today": "today",
+    "tomorrow": "tomorrow",
+    "in_days": "in {days} days",
+    "warnings_header": "Budget:",
+    "footer": "You get these emails because reminders are on in Bank Statement Analyzer. You can turn them off under Account settings."
+  },
+  "report": {
+    "button": "Download the report for {month} (.xlsx)",
+    "file_name": "report",
+    "month": "Month",
+    "item": "Item",
+    "value": "Value",
+    "sheets": {
+      "summary": "Summary",
+      "categories": "Categories",
+      "budgets": "Budgets",
+      "transactions": "Transactions",
+      "recurring": "Recurring payments",
+      "alerts": "Alerts",
+      "advice": "Advice"
+    }
   }
 }

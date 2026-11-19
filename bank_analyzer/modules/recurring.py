@@ -38,10 +38,12 @@ PERIODS = (
     Period("yearly", 365, 12),
 )
 PERIOD_BY_DAYS = {p.days: p for p in PERIODS}
+PERIOD_BY_KEY = {p.key: p for p in PERIODS}
 
 PAYMENT_COLUMNS = [
-    "id", "name", "category", "expected_amount", "period", "last_paid", "next_due",
+    "id", "name", "category", "expected_amount", "period", "last_paid", "next_due", "source",
 ]
+DETECTED, MANUAL = "detected", "manual"
 
 
 @dataclass(frozen=True)
@@ -136,11 +138,38 @@ def payments_frame(payments: Iterable[RecurringPayment]) -> pd.DataFrame:
                 "period": p.period.key,
                 "last_paid": p.last_paid,
                 "next_due": p.next_due,
+                "source": DETECTED,
             }
             for p in payments
         ],
         columns=PAYMENT_COLUMNS,
     )
+
+
+def roll_forward(payments: pd.DataFrame, today: date) -> pd.DataFrame:
+    """Move stale due dates to the next one that is still ahead.
+
+    A manual payment never shows up in statements, so its date is always
+    moved on. A detected one is only moved when it is overdue by more than the
+    period's tolerance: a few days late usually means the statement with that
+    payment hasn't been uploaded yet, and the tab shows it as overdue.
+    """
+    if payments.empty:
+        return payments
+    out = payments.copy()
+
+    def advance(row) -> date:
+        period = PERIOD_BY_KEY.get(row["period"])
+        due = row["next_due"]
+        if period is None:
+            return due
+        grace = 0 if row["source"] == MANUAL else period.tolerance
+        while (today - due).days > grace:
+            due = period.next_after(due)
+        return due
+
+    out["next_due"] = out.apply(advance, axis=1)
+    return out.sort_values("next_due").reset_index(drop=True)
 
 
 class RecurringRepository(ABC):
@@ -155,6 +184,12 @@ class RecurringRepository(ABC):
     @abstractmethod
     def clear(self) -> None:
         """Forget all detected payments (used when the history is cleared)."""
+
+    @abstractmethod
+    def add_manual(
+        self, name: str, category: str, amount: float, period: Period, next_due: date
+    ) -> None:
+        """A payment the statements can't show (cash, another bank)."""
 
     @abstractmethod
     def dismiss(self, payment_id: int) -> None:

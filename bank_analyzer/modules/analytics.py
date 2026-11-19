@@ -1,7 +1,6 @@
 """Analytics: KPIs, category summary, trends, anomalies and budget checks.
 
-All logic lives in :class:`AnalyticsService`. The module-level functions are
-thin aliases kept for scripts/notebooks that imported them before.
+All logic lives in :class:`AnalyticsService`.
 """
 
 from __future__ import annotations
