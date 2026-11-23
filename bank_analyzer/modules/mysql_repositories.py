@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from typing import Iterable
 
-from .history import TransactionRepository, make_fingerprints
+from .history import BASE_CURRENCY, TransactionRepository, make_fingerprints
 from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 
 from .db import get_engine
@@ -134,12 +134,24 @@ class MySqlTransactionRepository(TransactionRepository):
             new = rows[~rows["fingerprint"].isin(existing)]
             if new.empty:
                 return 0
+            new = new.assign(
+                original_amount=(
+                    new["original_amount"].fillna(new["amount"])
+                    if "original_amount" in new.columns else new["amount"]
+                ),
+                original_currency=(
+                    new["original_currency"].fillna(BASE_CURRENCY)
+                    if "original_currency" in new.columns else BASE_CURRENCY
+                ),
+            )
             records = [
                 {
                     "uid": self.user_id,
                     "dt": r.date.to_pydatetime(),
                     "descr": str(r.description),
                     "amount": round(float(r.amount), 2),
+                    "oamount": round(float(r.original_amount), 2),
+                    "ocur": str(r.original_currency),
                     "ttype": r.transaction_type,
                     "cat": r.category,
                     "method": r.method,
@@ -151,8 +163,10 @@ class MySqlTransactionRepository(TransactionRepository):
             conn.execute(
                 text(
                     "INSERT INTO transactions (user_id, txn_date, description, amount, "
+                    "original_amount, original_currency, "
                     "transaction_type, category, method, confidence, fingerprint) "
-                    "VALUES (:uid, :dt, :descr, :amount, :ttype, :cat, :method, :conf, :fp)"
+                    "VALUES (:uid, :dt, :descr, :amount, :oamount, :ocur, "
+                    ":ttype, :cat, :method, :conf, :fp)"
                 ),
                 records,
             )
@@ -162,7 +176,8 @@ class MySqlTransactionRepository(TransactionRepository):
         with self._engine.connect() as conn:
             df = pd.read_sql(
                 text(
-                    "SELECT id, txn_date, description, amount, transaction_type, "
+                    "SELECT id, txn_date, description, amount, original_amount, "
+                    "original_currency, transaction_type, "
                     "category, method, confidence, fingerprint "
                     "FROM transactions WHERE user_id = :uid ORDER BY txn_date"
                 ),
@@ -172,6 +187,9 @@ class MySqlTransactionRepository(TransactionRepository):
         df = df.rename(columns={"txn_date": "date"})
         df["date"] = pd.to_datetime(df["date"])
         df["amount"] = df["amount"].astype(float)
+        # Rows saved before currency support have no original values: they were AMD.
+        df["original_amount"] = df["original_amount"].astype(float).fillna(df["amount"])
+        df["original_currency"] = df["original_currency"].fillna(BASE_CURRENCY).astype(str)
         df["confidence"] = df["confidence"].astype(float)
         df["cleaned_description"] = df["description"].map(self._normalizer.clean)
         df["transaction_id"] = df.pop("id").astype(str)

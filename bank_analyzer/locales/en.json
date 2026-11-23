@@ -22,6 +22,23 @@
     "load_success": "Loaded {count} transactions, {added} new.",
     "date_range": "Date Range"
   },
+  "currency": {
+    "converted": "This statement is in {code}. Amounts were converted to AMD at the rates of {date}.",
+    "approximate": "{count} transactions are older than the first saved rates, so their AMD amounts are approximate.",
+    "stale": "Fresh rates could not be downloaded, so the last saved ones were used.",
+    "no_rates": "This statement is in {code}, but there are no exchange rates yet. Add CURRENCY_API_KEY to .env (or to Streamlit Secrets) and load the file again.",
+    "no_rates_display": "There is no exchange rate for {code} yet, so amounts are shown in AMD. Check CURRENCY_API_KEY and try again in a few minutes.",
+    "names": {
+      "AMD": "Armenian dram",
+      "USD": "US dollar",
+      "EUR": "Euro",
+      "RUB": "Russian ruble",
+      "GBP": "British pound",
+      "GEL": "Georgian lari",
+      "AED": "UAE dirham",
+      "CNY": "Chinese yuan"
+    }
+  },
   "auth": {
     "login_tab": "Sign in",
     "register_tab": "Create account",
@@ -98,6 +115,9 @@
     "all": "All",
     "search": "Search Description",
     "select_columns": "Select Columns to Display & Export",
+    "currency": "Currency",
+    "currency_note": "Amounts in {code}, converted from AMD at the rates of {date}. Stored data stays in AMD.",
+    "currency_approximate": "{count} transactions are older than the first saved rates, so their amounts are approximate.",
     "no_columns": "Please select at least one column to display and export.",
     "export_format": "Export Format",
     "download": "📥 Download as {format}",
@@ -106,7 +126,8 @@
     "transaction_id": "Transaction ID",
     "new_category": "New Category",
     "apply_override": "Apply Override",
-    "override_success": "Category updated to '{category}'. Rules/dataset updated for retraining."
+    "override_success": "Category updated to '{category}'. Rules/dataset updated for retraining.",
+    "converted_note": "Some amounts were converted to AMD. The values from the statement are in the Original amount and Original currency columns."
   },
   "budget": {
     "header": "Budget Limits",
@@ -196,6 +217,8 @@
     "cleaned_description": "Cleaned description",
     "category": "Category",
     "amount": "Amount",
+    "original_amount": "Original amount",
+    "original_currency": "Original currency",
     "transaction_type": "Type",
     "confidence": "Confidence",
     "method": "Method",

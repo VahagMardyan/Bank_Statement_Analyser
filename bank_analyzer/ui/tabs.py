@@ -12,6 +12,7 @@ import streamlit as st
 from modules.advisor import Advice, MonthForecast
 from modules.alerts import Alert, AlertKind, alerts_frame
 from modules.constants import DEFAULT_BUDGETS
+from modules.currency import BASE_CURRENCY, RatesUnavailableError
 from modules.exporters import ExportStrategyFactory
 from modules.facade import BankAnalyzerFacade
 from modules.i18n import Translator
@@ -133,29 +134,49 @@ class TransactionExplorerTab(DashboardTab):
         "description",
         "category",
         "amount",
+        "original_amount",
+        "original_currency",
         "transaction_type",
         "confidence",
         "method",
     ]
-    DEFAULT_COLUMNS = COLUMNS[:-2]
+    DEFAULT_COLUMNS = [
+        "transaction_id", "date", "description", "category", "amount", "transaction_type",
+    ]
     ALL = "__all__"
 
     def render(self, df: pd.DataFrame) -> None:
         filtered = self._filter(df)
-        selected_cols = st.multiselect(
-            self.tr.t("explorer.select_columns"),
-            options=self.COLUMNS,
-            default=self.DEFAULT_COLUMNS,
-            format_func=self.tr.column,
-        )
+        options = [c for c in self.COLUMNS if c in df.columns]
+        if "original_currency" in df.columns and (df["original_currency"] != BASE_CURRENCY).any():
+            st.caption(self.tr.t("explorer.converted_note"))
+        col_cols, col_cur = st.columns([3, 1])
+        with col_cols:
+            selected_cols = st.multiselect(
+                self.tr.t("explorer.select_columns"),
+                options=options,
+                default=[c for c in self.DEFAULT_COLUMNS if c in options],
+                format_func=self.tr.column,
+            )
+        with col_cur:
+            currency = st.selectbox(
+                self.tr.t("explorer.currency"),
+                self.analyzer.display_currencies(),
+                format_func=lambda c: f"{c} ({self.tr.t(f'currency.names.{c}')})",
+                key="explorer_currency",
+            )
         if not selected_cols:
             st.warning(self.tr.t("explorer.no_columns"))
             return
 
-        display_df = self.tr.localize(format_dates(filtered[selected_cols]))
+        shown, currency = self._in_currency(filtered, currency)
+        display_df = self.tr.localize(format_dates(shown[selected_cols]))
+        display_df = display_df.rename(
+            columns={self.tr.column("amount"): f"{self.tr.column('amount')} ({currency})"}
+        )
         st.dataframe(display_df, width="stretch", hide_index=True)
         if not display_df.empty:
-            self._render_export(display_df)
+            self._render_export(display_df, currency)
 
         st.divider()
         st.subheader(self.tr.t("explorer.override_header"))
@@ -190,8 +211,29 @@ class TransactionExplorerTab(DashboardTab):
             ]
         return filtered.copy()
 
-    def _render_export(self, display_df: pd.DataFrame) -> None:
-        """Exports exactly what is on screen, in the selected language."""
+    def _in_currency(self, df: pd.DataFrame, currency: str) -> tuple[pd.DataFrame, str]:
+        """Amounts in the chosen currency; falls back to AMD without rates."""
+        if currency == BASE_CURRENCY:
+            return df, currency
+        try:
+            converted, info = self.analyzer.convert_for_display(df, currency)
+        except RatesUnavailableError:
+            st.error(self.tr.t("currency.no_rates_display", code=currency))
+            return df, BASE_CURRENCY
+        if info.rate_dates:
+            st.caption(self.tr.t(
+                "explorer.currency_note",
+                code=currency,
+                date=", ".join(d.isoformat() for d in info.rate_dates),
+            ))
+        if info.approximate_rows:
+            st.caption(self.tr.t("explorer.currency_approximate", count=info.approximate_rows))
+        if info.stale:
+            st.caption(self.tr.t("currency.stale"))
+        return converted, currency
+
+    def _render_export(self, display_df: pd.DataFrame, currency: str) -> None:
+        """Exports exactly what is on screen: language, columns and currency."""
         col_fmt, col_btn = st.columns([1, 2], vertical_alignment="bottom")
         with col_fmt:
             export_format = st.selectbox(
@@ -202,7 +244,9 @@ class TransactionExplorerTab(DashboardTab):
             st.download_button(
                 label=self.tr.t("explorer.download", format=export_format),
                 data=strategy.export(display_df),
-                file_name=f"{self.tr.t('explorer.export_file_name')}{strategy.file_extension}",
+                file_name=(
+                    f"{self.tr.t('explorer.export_file_name')}_{currency}{strategy.file_extension}"
+                ),
                 mime=strategy.mime_type,
                 width="stretch",
             )

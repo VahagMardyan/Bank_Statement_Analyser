@@ -11,6 +11,11 @@ Collaborators (each a small single-purpose class):
 
 Columns are found by the header hints in ``COLUMN_HINTS`` (Armenian, English,
 Russian), so no per-bank configuration is needed.
+
+The account currency is found by :class:`modules.currency.CurrencyDetector`.
+The loader only records it: ``original_amount`` / ``original_currency`` hold
+the values from the file, and ``amount`` is still in that currency here.
+Converting to AMD is done later by :class:`modules.currency.CurrencyConverter`.
 """
 
 from __future__ import annotations
@@ -24,6 +29,7 @@ from typing import Any, Optional, Sequence
 import numpy as np
 import pandas as pd
 
+from .currency import CurrencyDetector
 from .models import TransactionType
 from .readers import (
     WHITESPACE,
@@ -267,6 +273,7 @@ class StatementLoaderTemplate(ABC):
 
     STANDARD_COLUMNS = (
         "date", "description", "cleaned_description", "amount", "transaction_type",
+        "original_amount", "original_currency",
     )
 
     def load(self, file_path: str | Path, encoding: Optional[str] = None) -> pd.DataFrame:
@@ -302,8 +309,10 @@ class BankStatementLoader(StatementLoaderTemplate):
         reader_factory: Optional[StatementReaderFactory] = None,
         *,
         normalizer: TextNormalizer = DEFAULT_NORMALIZER,
+        currency_detector: Optional[CurrencyDetector] = None,
     ) -> None:
         self._readers = reader_factory or StatementReaderFactory()
+        self._currency = currency_detector or CurrencyDetector()
         self._normalizer = normalizer
         self._columns = ColumnResolver()
         self._amounts = AmountParser(self._columns)
@@ -325,14 +334,18 @@ class BankStatementLoader(StatementLoaderTemplate):
             raw, hints("description"), exclude=(date_col, *amounts.source_columns)
         )
         descriptions = self._descriptions.build(raw, desc_col)
+        currency = self._currency.detect(raw, amounts.source_columns).code
+        amount = pd.to_numeric(amounts.amount, errors="coerce")
 
         return pd.DataFrame(
             {
                 "date": self._dates.parse(raw[date_col]),
                 "description": descriptions,
                 "cleaned_description": descriptions.map(self._normalizer.clean),
-                "amount": pd.to_numeric(amounts.amount, errors="coerce"),
+                "amount": amount,
                 "transaction_type": amounts.transaction_type,
+                "original_amount": amount,
+                "original_currency": currency,
             }
         )
 

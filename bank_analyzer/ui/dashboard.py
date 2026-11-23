@@ -10,6 +10,7 @@ from typing import Optional
 import pandas as pd
 import streamlit as st
 
+from modules.currency import ConversionInfo, RatesUnavailableError
 from modules.facade import BankAnalyzerFacade
 from modules.i18n import DEFAULT_LANGUAGE, Translator
 from modules.models import KPIMetrics, User
@@ -25,6 +26,8 @@ from .tabs import (
     TransactionExplorerTab,
     VisualAnalyticsTab,
 )
+
+CONVERSION_STATE_KEY = "conversion"  # ConversionInfo of the last loaded statement
 
 
 class DashboardApp:
@@ -87,6 +90,7 @@ class DashboardApp:
         )
         if uploaded is not None and st.button(self.tr.t("sidebar.load_button"), type="primary"):
             self._load(uploaded)
+        self._render_conversion(st.session_state.get(CONVERSION_STATE_KEY))
 
         df: Optional[pd.DataFrame] = st.session_state.df
         if df is None or df.empty:
@@ -100,6 +104,9 @@ class DashboardApp:
             tmp_path = Path(tmp.name)
         try:
             classified = self.analyzer.load_and_classify(tmp_path)
+        except RatesUnavailableError as exc:
+            st.error(self.tr.t("currency.no_rates", code=exc.currency))
+            return
         except Exception as exc:  # show any parsing problem to the user
             st.error(self.tr.t("sidebar.load_error", error=exc))
             return
@@ -112,7 +119,19 @@ class DashboardApp:
         st.success(
             self.tr.t("sidebar.load_success", count=len(classified), added=added)
         )
-        
+        st.session_state[CONVERSION_STATE_KEY] = self.analyzer.last_conversion
+
+    def _render_conversion(self, info: Optional[ConversionInfo]) -> None:
+        """Which rates the last foreign statement was converted with."""
+        if info is None or not info.converted:
+            return
+        dates = ", ".join(d.isoformat() for d in info.rate_dates)
+        st.info(self.tr.t("currency.converted", code=info.currency, date=dates))
+        if info.approximate_rows:
+            st.warning(self.tr.t("currency.approximate", count=info.approximate_rows))
+        if info.stale:
+            st.caption(self.tr.t("currency.stale"))
+
     def _date_filter(self, df: pd.DataFrame) -> pd.DataFrame:
         min_date, max_date = df["date"].min().date(), df["date"].max().date()
         date_range = st.date_input(

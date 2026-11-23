@@ -8,19 +8,37 @@ from typing import Iterable
 
 import pandas as pd
 
+BASE_CURRENCY = "AMD"
+
+
 def make_fingerprints(df: pd.DataFrame) -> pd.Series:
     """SHA-256 per row from date, amount, type and description.
+
+    The amount is the ORIGINAL one from the statement, not the AMD value. A USD
+    statement uploaded again after the rates changed must give the same
+    fingerprints, otherwise every row would be saved twice. For a foreign
+    currency the code is added to the key; AMD rows get no suffix, so their
+    fingerprints are the same as before currency support existed.
 
     Two identical rows in one statement (same coffee twice in the same minute)
     get different fingerprints through their occurrence number, so both are kept.
     Uploading the same statement again gives the same numbers, so neither is added twice.
     """
+    amount = df["amount"]
+    if "original_amount" in df.columns:
+        amount = df["original_amount"].fillna(df["amount"])
+    currency = (
+        df["original_currency"].fillna(BASE_CURRENCY).astype(str)
+        if "original_currency" in df.columns
+        else pd.Series(BASE_CURRENCY, index=df.index)
+    )
 
     key = (
         df['date'].dt.strftime("%Y-%m-%d %H:%M:%S")
-        + "|" + df['amount'].map("{:.2f}".format)
+        + "|" + amount.astype(float).map("{:.2f}".format)
         + "|" + df['transaction_type'].astype(str)
         + "|" + df['description'].astype(str).str.strip()
+        + currency.map(lambda c: "" if c == BASE_CURRENCY else f"|{c}")
     )
 
     occurrence = key.groupby(key).cumcount().astype(str)

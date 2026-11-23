@@ -20,7 +20,9 @@ CREATE TABLE transactions(
     user_id INT NOT NULL,
     txn_date DATETIME NOT NULL,
     description TEXT NOT NULL,
-    amount DECIMAL(14, 2) NOT NULL,
+    amount DECIMAL(14, 2) NOT NULL,          -- always AMD (converted if needed)
+    original_amount DECIMAL(14, 2),          -- as written in the statement
+    original_currency CHAR(3) NOT NULL DEFAULT 'AMD',
     transaction_type ENUM('income', 'expense') NOT NULL,
     category VARCHAR(64) NOT NULL,
     method VARCHAR(32),

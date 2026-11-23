@@ -6,7 +6,9 @@ Patterns:
   * Factory   - :class:`StatementReaderFactory` picks the reader for a path.
 
 Every reader offers ``can_read`` (is this my format?) and ``read`` (the full
-table with headers applied).
+table with headers applied). The rows above the table (bank name, account
+number, "Հաշվի արժույթ` USD" ...) are kept in ``df.attrs["preamble"]`` as a
+list of rows of cell texts; the currency detector reads them.
 """
 
 from __future__ import annotations
@@ -36,6 +38,9 @@ HEADER_AMOUNT_KEYWORDS = (
 )
 
 PDF_X_TOLERANCE = 1.5
+PREAMBLE_ATTR = "preamble"
+PDF_PREAMBLE_LINES = 40
+
 FULL_DATE_START = re.compile(r"^\d{1,2}[./\-]\d{1,2}[./\-](?:\d{4}|\d{2})(?!\d)")
 
 BORDERLESS_DATE_TOKEN = re.compile(r"^\d{2}/\d{2}/\d{2},?$")
@@ -68,7 +73,7 @@ def normalize_amount_string(value: Any) -> Optional[float]:
 
     sign = -1.0 if text.lstrip().startswith("-") else 1.0
     text = re.sub(r"^\s*[+\-]\s*", "", text)
-    text = re.sub(r"(?i)(amd|usd|eur|rub|֏)", "", text)
+    text = re.sub(r"(?i)(amd|usd|eur|rub|rur|gbp|gel|aed|cny|rmb|֏|\$|€|₽|£|₾|¥)", "", text)
     text = text.replace(" ", "")
 
     if "," in text and "." in text:
@@ -87,6 +92,14 @@ def normalize_amount_string(value: Any) -> Optional[float]:
         return sign * float(text)
     except ValueError:
         return None
+
+
+def preamble_rows(grid: pd.DataFrame) -> list[list[str]]:
+    """Cells above the table as text ('' for empty cells, positions kept)."""
+    return [
+        [normalize_column_name(v) for v in row]
+        for row in grid.itertuples(index=False, name=None)
+    ]
 
 
 def _magic(path: Path, n: int) -> bytes:
@@ -117,6 +130,7 @@ class TableExtractor:
     def extract(self, raw_df: pd.DataFrame) -> pd.DataFrame:
         header_idx = self._find_header_row(raw_df)
         if header_idx is None:
+            raw_df.attrs[PREAMBLE_ATTR] = []
             return raw_df
 
         header_rows = raw_df.iloc[header_idx : header_idx + 2]
@@ -139,8 +153,9 @@ class TableExtractor:
 
         df = raw_df.iloc[header_idx + (2 if has_second_header else 1) :].copy()
         df.columns = headers
-        df = df.loc[:, df.columns != ""]
-        return df.reset_index(drop=True)
+        df = df.loc[:, df.columns != ""].reset_index(drop=True)
+        df.attrs[PREAMBLE_ATTR] = preamble_rows(raw_df.iloc[:header_idx])
+        return df
 
     def _find_header_row(self, raw_df: pd.DataFrame) -> Optional[int]:
         for idx in range(min(len(raw_df), self.MAX_HEADER_SCAN)):
@@ -403,12 +418,29 @@ class PdfStatementReader(StatementReader):
         for layout in self._layouts:
             df = layout.extract(path)
             if df is not None and not df.empty:
+                if not df.attrs.get(PREAMBLE_ATTR):
+                    df.attrs[PREAMBLE_ATTR] = self._page_preamble(path)
                 return df
         raise ValueError(
             f"Could not find any table in {path.name}. This may be a scanned/"
             "image-only PDF, which isn't supported - try exporting the statement "
             "as CSV or Excel instead."
         )
+
+
+    @staticmethod
+    def _page_preamble(path: Path) -> list[list[str]]:
+        """Text lines at the top of page 1, up to the first transaction date."""
+        with pdfplumber.open(path) as pdf:
+            if not pdf.pages:
+                return []
+            text = pdf.pages[0].extract_text(x_tolerance=PDF_X_TOLERANCE) or ""
+        rows: list[list[str]] = []
+        for line in text.splitlines()[:PDF_PREAMBLE_LINES]:
+            if FULL_DATE_START.match(line.strip()):
+                break
+            rows.append([normalize_column_name(line)])
+        return rows
 
 
 class ExcelStatementReader(StatementReader):

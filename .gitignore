@@ -55,3 +55,4 @@ training_data.csv
 _upload.*
 
 .devcontainer
+bank_analyzer/data/exchange_rates.*

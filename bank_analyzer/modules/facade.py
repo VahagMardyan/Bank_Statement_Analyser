@@ -15,6 +15,7 @@ from .anomaly import AnomalyDetector
 from .budgets import BudgetRepository
 from .classifier import TransactionClassifier
 from .constants import DEFAULT_BUDGETS
+from .currency import SUPPORTED_CURRENCIES, ConversionInfo, CurrencyConverter
 from .history import TransactionRepository
 from .ingestion import BankStatementLoader
 from .ml_model import LearnedCategoryModel
@@ -59,6 +60,7 @@ class BankAnalyzerFacade:
         budgets: BudgetRepository | None = None,
         advisor: SpendingAdvisor | None = None,
         alert_detector: SuspiciousActivityDetector | None = None,
+        converter: CurrencyConverter | None = None,
     ) -> None:
         self._loader: StatementLoaderProtocol = loader or BankStatementLoader()
         self._classifier: ClassifierProtocol = classifier or TransactionClassifier()
@@ -69,6 +71,9 @@ class BankAnalyzerFacade:
         self._budgets = budgets
         self._advisor = advisor or SpendingAdvisor()
         self._alert_detector = alert_detector or SuspiciousActivityDetector()
+        self._converter = converter or CurrencyConverter()
+        #: What the last load_and_classify() did with currencies (for the UI).
+        self.last_conversion = ConversionInfo()
         # Stored history and recurring list, kept between Streamlit reruns.
         # Every method that changes stored data calls _invalidate().
         self._cache: dict[str, Any] = {}
@@ -113,7 +118,13 @@ class BankAnalyzerFacade:
     def load_and_classify(
         self, file_path: str | Path
     ) -> pd.DataFrame:
+        """Load, convert foreign amounts to AMD, classify.
+
+        Raises :class:`modules.currency.RatesUnavailableError` when the
+        statement is not in AMD and no exchange rate is available.
+        """
         raw = self._loader.load(file_path)
+        raw, self.last_conversion = self._converter.convert(raw)
         classified = self._classifier.classify(raw)
         if not isinstance(classified, pd.DataFrame):
             raise TypeError("Classifier must return a DataFrame for statement files.")
@@ -124,6 +135,21 @@ class BankAnalyzerFacade:
             if self._classifier.learn_from_dataframe(classified):
                 classified = self._classifier.reclassify_uncertain(classified)
         return classified
+
+    # display currency
+    @staticmethod
+    def display_currencies() -> tuple[str, ...]:
+        return SUPPORTED_CURRENCIES
+
+    def convert_for_display(
+        self, df: pd.DataFrame, currency: str
+    ) -> tuple[pd.DataFrame, ConversionInfo]:
+        """``df`` with amounts in ``currency`` (AMD stays as stored).
+
+        Raises :class:`modules.currency.RatesUnavailableError` if there is no
+        rate for ``currency``.
+        """
+        return self._converter.to_currency(df, currency)
 
     def save_transactions(self, df: pd.DataFrame) -> int:
         """Store new rows and re-detect recurring payments."""

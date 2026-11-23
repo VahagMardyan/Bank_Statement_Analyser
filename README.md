@@ -4,27 +4,30 @@ A Streamlit app that reads bank statements (CSV, XLS, XLSX, PDF), puts every tra
 
 Each person has their own account. Uploaded transactions are saved in MySQL, so the dashboard shows your whole history, not just the last file, and uploading the same statement twice doesn't create duplicates. From that history the app finds recurring payments (subscriptions, rent, utilities) and the date each one is due next. It also forecasts the month's spending, warns when a category is heading over budget, flags payments that look suspicious, and can email reminders before payments are due.
 
+Statements don't have to be in AMD. A USD, EUR, RUB or other foreign statement is converted to AMD with saved exchange rates, and the transaction table can be shown and downloaded in any of the supported currencies.
+
 The interface is in Armenian and English. Another language is one more JSON file.
 
 ## Design patterns
 
 The project follows SOLID principles and implements these design patterns:
 
-| Pattern                                   | Where                                                                                                 | Purpose                                                                                                                                                  |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Facade**                          | `BankAnalyzerFacade` (`facade.py`)                                                                | One entry point (load → classify → learn → analyze) for the UI. The UI never reaches into the subsystems.                                             |
-| **Template Method**                 | `StatementLoaderTemplate.load` (`ingestion.py`), `ExportStrategy.export` (`exporters.py`)     | Fixed pipeline: read file → standardize → drop invalid rows → finalize. Subclasses supply the steps.                                                  |
-| **Strategy**                        | `StatementReader`, `PdfLayoutStrategy`, `ExportStrategy`, `AnomalyDetector`, `RecurringDetector`, `AlertRule`, `NotificationChannel` | Interchangeable algorithms for file formats (PDF / Excel / CSV), PDF layouts (borderless / table), exports (CSV / Excel) and anomaly detection (Z-score) |
-| **Factory**                         | `StatementReaderFactory`, `ExportStrategyFactory`                                                 | Picks the right reader for a file and the right exporter for a UI choice                                                                                 |
-| **Registry (decorator)**            | `@ExportStrategyFactory.register("CSV")`                                                            | A new export format is one new class; the factory is never edited (Open/Closed)                                                                          |
-| **Chain of Responsibility**         | `ClassificationHandler` (`classification_handlers.py`)                                            | Primary description → merchant → keyword → individual entrepreneur → ML model → fuzzy match → `Other`                                            |
-| **Builder**                         | `ClassificationChainBuilder`                                                                        | Assembles the chain in one readable place; optional steps (the ML model) are skipped with `None`                                                       |
-| **Observer**                        | `RuleSet.subscribe` → `RuleMatcher`, `FuzzyRuleIndex`, `LearnedCategoryModel` (`rules.py`) | When an override adds a rule, every index and the ML model rebuild automatically                                                                         |
-| **Repository**                      | `JsonRuleRepository` / `InMemoryRuleRepository`, `TrainingExampleStore`, `LocaleRepository`; MySQL versions in `mysql_repositories.py`, `users.py`, `remember.py` | Storage is hidden behind `load` / `save`. The same classifier works with JSON / CSV files or with MySQL, and evaluation runs on an in-memory copy that never touches your data |
-| **Factory Method**                  | `BankAnalyzerFacade.for_user(user_id)`                                                            | Builds a facade whose rules, ML examples, history and recurring payments all belong to one user. The UI doesn't need to know how it's assembled          |
-| **Parameter Object**                | `ClassificationRequest` (`models.py`)                                                             | Raw text, cleaned text, bank description and excluded categories travel together; text is cleaned once per row                                           |
-| **Value Object**                    | `ClassificationResult`, `KPIMetrics`, `ParsedAmounts`, `Prediction`, `User`, `RecurringPayment`, `Period` (frozen dataclasses) | Immutable results. `User` has no password hash on purpose, since it lives in the Streamlit session                                       |
-| **Dependency Injection / Protocol** | `StatementLoaderProtocol`, `ClassifierProtocol`, `SelfTrainingClassifier`, `Translator`       | High-level code depends on interfaces, so the loader, classifier, model and language can be swapped or mocked in tests                                   |
+
+| Pattern                             | Where                                                                                                                                                                                          | Purpose                                                                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Facade**                          | `BankAnalyzerFacade` (`facade.py`)                                                                                                                                                             | One entry point (load → classify → learn → analyze) for the UI. The UI never reaches into the subsystems.                                                                   |
+| **Template Method**                 | `StatementLoaderTemplate.load` (`ingestion.py`), `ExportStrategy.export` (`exporters.py`)                                                                                                      | Fixed pipeline: read file → standardize → drop invalid rows → finalize. Subclasses supply the steps.                                                                        |
+| **Strategy**                        | `StatementReader`, `PdfLayoutStrategy`, `ExportStrategy`, `AnomalyDetector`, `RecurringDetector`, `AlertRule`, `NotificationChannel`                                                           | Interchangeable algorithms for file formats (PDF / Excel / CSV), PDF layouts (borderless / table), exports (CSV / Excel) and anomaly detection (Z-score)                       |
+| **Factory**                         | `StatementReaderFactory`, `ExportStrategyFactory`                                                                                                                                              | Picks the right reader for a file and the right exporter for a UI choice                                                                                                       |
+| **Registry (decorator)**            | `@ExportStrategyFactory.register("CSV")`                                                                                                                                                       | A new export format is one new class; the factory is never edited (Open/Closed)                                                                                                |
+| **Chain of Responsibility**         | `ClassificationHandler` (`classification_handlers.py`)                                                                                                                                         | Primary description → merchant → keyword → individual entrepreneur → ML model → fuzzy match → `Other`                                                                    |
+| **Builder**                         | `ClassificationChainBuilder`                                                                                                                                                                   | Assembles the chain in one readable place; optional steps (the ML model) are skipped with `None`                                                                               |
+| **Observer**                        | `RuleSet.subscribe` → `RuleMatcher`, `FuzzyRuleIndex`, `LearnedCategoryModel` (`rules.py`)                                                                                                    | When an override adds a rule, every index and the ML model rebuild automatically                                                                                               |
+| **Repository**                      | `JsonRuleRepository` / `InMemoryRuleRepository`, `TrainingExampleStore`, `LocaleRepository`, `RateStore` (`currency.py`); MySQL versions in `mysql_repositories.py`, `users.py`, `remember.py` | Storage is hidden behind `load` / `save`. The same classifier works with JSON / CSV files or with MySQL, and evaluation runs on an in-memory copy that never touches your data |
+| **Factory Method**                  | `BankAnalyzerFacade.for_user(user_id)`                                                                                                                                                         | Builds a facade whose rules, ML examples, history and recurring payments all belong to one user. The UI doesn't need to know how it's assembled                                |
+| **Parameter Object**                | `ClassificationRequest` (`models.py`)                                                                                                                                                          | Raw text, cleaned text, bank description and excluded categories travel together; text is cleaned once per row                                                                 |
+| **Value Object**                    | `ClassificationResult`, `KPIMetrics`, `ParsedAmounts`, `Prediction`, `User`, `RecurringPayment`, `Period` (frozen dataclasses)                                                                 | Immutable results. `User` has no password hash on purpose, since it lives in the Streamlit session                                                                             |
+| **Dependency Injection / Protocol** | `StatementLoaderProtocol`, `ClassifierProtocol`, `SelfTrainingClassifier`, `Translator`, `RateSource`                                                                                          | High-level code depends on interfaces, so the loader, classifier, model, language and exchange rate source can be swapped or mocked in tests                                   |
 
 How SOLID shows up:
 
@@ -33,10 +36,11 @@ How SOLID shows up:
 - **Interface Segregation:** `ClassifierProtocol` is the minimum the UI needs. Self-training is a separate optional protocol (`SelfTrainingClassifier`).
 - **Dependency Inversion:** the facade depends on protocols, not concrete classes.
 
-UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/` (rendered). They don't cover the database, account and recurring payment classes yet:
+UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/` (rendered). They don't cover the database, account, recurring payment and currency classes yet:
 
-| File                              | Shows                                                               |
-| --------------------------------- | ------------------------------------------------------------------- |
+
+| File                            | Shows                                                               |
+| --------------------------------- | --------------------------------------------------------------------- |
 | `01_ingestion_system.mmd`       | Loader template, column/amount/date parsing, readers, PDF layouts   |
 | `02_classification_system.mmd`  | Classifier, rules + repository + observers, handler chain, ML model |
 | `03_analytics_and_exporter.mmd` | Analytics service, anomaly strategy, export strategies + registry   |
@@ -57,6 +61,7 @@ UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/`
 │   │   └── schema.sql                   # MySQL database: 8 tables
 │   ├── data/
 │   │   ├── training_data.csv            # Created at runtime when running without a database
+│   │   ├── exchange_rates.json          # Saved exchange rates, created at runtime (see Foreign currencies)
 │   │   ├── labelled_all.xlsx            # Hand-checked labels (849 real transactions) for evaluation
 │   │   ├── fake_statement_ML_demo.csv   # Demo statement with merchants unknown to the rules
 │   │   └── fake_statement_recurring_demo.csv  # 6.5 months of made-up payments for testing recurring detection
@@ -82,7 +87,8 @@ UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/`
 │   │   ├── advisor.py                   # SpendingAdvisor: month status, advice, end-of-month forecast
 │   │   ├── alerts.py                    # SuspiciousActivityDetector and its AlertRule strategies
 │   │   ├── notifications.py             # Email reminders: channels, notification log, ReminderService
-│   │   └── report.py                    # Monthly .xlsx report (one sheet per table)
+│   │   ├── report.py                    # Monthly .xlsx report (one sheet per table)
+│   │   ├── currency.py                  # Statement currency detection, exchange rates, conversion to and from AMD
 │   │   ├── i18n.py                      # Translator, LocaleRepository, missing-translation checker
 │   │   ├── models.py                    # Enums, dataclasses, protocols
 │   │   └── constants.py                 # Default budgets, income categories
@@ -95,6 +101,7 @@ UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/`
 │   │   └── common.py                    # Session keys, cookies, flash messages, language switch
 │   ├── app.py                           # Streamlit entry point: shows the login page or the dashboard
 │   ├── send_reminders.py                # Daily job: sends reminder emails (or prints them with --dry-run)
+│   ├── migrate_currency.py              # One-time update for databases made before currency support
 │   └── evaluate_classifier.py           # Accuracy evaluation + threshold tuning
 ├── requirements.txt
 ├── README.md
@@ -108,8 +115,9 @@ UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/`
 ## Requirements
 
 - Python 3.10+
-- MySQL 8.0.19 or newer (the upsert queries use the `INSERT ... AS new` syntax added in 8.0.19)
-- Python packages from `requirements.txt`: pandas, scikit-learn, scipy, pdfplumber, openpyxl, xlrd, streamlit, plotly, and for the database and accounts sqlalchemy, pymysql, cryptography, python-dotenv, bcrypt
+- MySQL 8 or TiDB Cloud. The upsert queries use `ON DUPLICATE KEY UPDATE col = VALUES(col)`, which both accept. TiDB doesn't run the newer `INSERT ... AS new` form, so the code doesn't use it.
+- Python packages from `requirements.txt` (in the repository root): pandas, scikit-learn, scipy, pdfplumber, openpyxl, xlrd, streamlit, plotly, and for the database and accounts sqlalchemy, pymysql, cryptography, certifi, python-dotenv, bcrypt
+- A free [currencyapi.com](https://currencyapi.com) key, only if you load statements in currencies other than AMD
 
 ## Installation
 
@@ -123,8 +131,10 @@ python -m venv .venv
 # macOS / Linux
 source .venv/bin/activate
 
-pip install -r requirements.txt
+pip install -r ../requirements.txt
 ```
+
+`requirements.txt` sits in the repository root because Streamlit Cloud reads it from there.
 
 ### Database
 
@@ -136,7 +146,12 @@ DB_PORT=3306
 DB_USER=root
 DB_PASSWORD=your_password
 DB_NAME=bank_analyser
+
+# Only for statements in other currencies
+CURRENCY_API_KEY=your_currencyapi_key
 ```
+
+For a hosted database that requires an encrypted connection (TiDB Cloud does), also add `DB_SSL=true`.
 
 Then create the database and tables from the `bank_analyzer/db` folder:
 
@@ -145,6 +160,12 @@ mysql -u root -p --default-character-set=utf8mb4 -e "source schema.sql"
 ```
 
 PowerShell doesn't support `<`, which is why the command uses `source`. Check that it worked with `mysql -u root -p -e "USE bank_analyser; SHOW TABLES;"`, which should list 8 tables. To start over with an empty database, run `DROP DATABASE bank_analyser;` and load the schema again. That deletes every account too.
+
+A database made before currency support needs two new columns in `transactions`. Run this once from `bank_analyzer`. It does nothing if the columns are already there:
+
+```powershell
+python migrate_currency.py
+```
 
 Without a database the classifier still works on its own (`BankAnalyzerFacade()` uses the JSON and CSV files), which is how `evaluate_classifier.py` runs.
 
@@ -159,17 +180,18 @@ The app opens in your browser (default: http://localhost:8501). On Windows, `run
 
 ### What's on screen
 
-| Section                        | Description                                                                                   |
-| ------------------------------ | --------------------------------------------------------------------------------------------- |
-| **Login page**           | Sign in or create an account, "Keep me signed in", language switch                            |
-| **Sidebar**              | Language switch, your name and email, sign out, account settings, statement upload (CSV / XLS / XLSX / PDF), date range filter |
-| **Metrics**              | Total income, expenses, net savings, transaction count                                        |
-| **Visual Analytics**     | Donut chart, monthly trends, top 5 expenses                                                   |
-| **Transaction Explorer** | Filterable table with `confidence` and `method` columns, export, manual category override |
-| **Budget & Anomalies**   | Month selector, saved monthly limits per category, progress bars, monthly .xlsx report, Z-score anomaly detection |
-| **Recurring Payments**   | Detected regular payments with amount, period, last and next payment date, days left; wrong ones can be hidden, missing ones added by hand |
-| **Advisor**              | This month so far, recurring payments still due, end-of-month estimate, budget warnings |
-| **Alerts**               | Possible duplicate charges, large first payments to new merchants, price increases, night payments |
+
+| Section                  | Description                                                                                                                                                                            |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Login page**           | Sign in or create an account, "Keep me signed in", language switch                                                                                                                     |
+| **Sidebar**              | Language switch, your name and email, sign out, account settings, statement upload (CSV / XLS / XLSX / PDF), which exchange rates were used for a foreign statement, date range filter |
+| **Metrics**              | Total income, expenses, net savings, transaction count                                                                                                                                 |
+| **Visual Analytics**     | Donut chart, monthly trends, top 5 expenses                                                                                                                                            |
+| **Transaction Explorer** | Filterable table with `confidence` and `method` columns, currency picker, CSV / Excel export in the chosen currency, manual category override                                          |
+| **Budget & Anomalies**   | Month selector, saved monthly limits per category, progress bars, monthly .xlsx report, Z-score anomaly detection                                                                      |
+| **Recurring Payments**   | Detected regular payments with amount, period, last and next payment date, days left; wrong ones can be hidden, missing ones added by hand                                             |
+| **Advisor**              | This month so far, recurring payments still due, end-of-month estimate, budget warnings                                                                                                |
+| **Alerts**               | Possible duplicate charges, large first payments to new merchants, price increases, night payments                                                                                     |
 
 ## Accounts and stored data
 
@@ -177,19 +199,21 @@ Passwords are hashed with bcrypt and never stored as text. Signing in with a wro
 
 Everything a user does is stored under their id:
 
-| Table                 | What's in it                                                                                     |
-| --------------------- | ------------------------------------------------------------------------------------------------ |
-| `users`               | Email, name, password hash, language                                                             |
-| `transactions`        | Every uploaded transaction with its category                                                     |
-| `user_rules`          | Keywords from your manual overrides. The shared rules stay in `category_rules.json` for everyone |
-| `training_examples`   | What the ML model has learned for you                                                            |
-| `recurring_payments`  | Detected regular payments, including the ones you hid                                            |
-| `auth_tokens`         | "Keep me signed in" tokens                                                                       |
-| `budgets`, `notifications_log` | Created by the schema but not used yet (planned for the spending advisor and email reminders) |
+
+| Table                | What's in it                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------- |
+| `users`              | Email, name, password hash, language                                                                  |
+| `transactions`       | Every uploaded transaction with its category, the amount in AMD, and the original amount and currency |
+| `user_rules`         | Keywords from your manual overrides. The shared rules stay in `category_rules.json` for everyone      |
+| `training_examples`  | What the ML model has learned for you                                                                 |
+| `recurring_payments` | Detected regular payments, including the ones you hid                                                 |
+| `auth_tokens`        | "Keep me signed in" tokens                                                                            |
+| `budgets`            | Monthly limits per category                                                                           |
+| `notifications_log`  | Reminders and warnings already emailed, so none is sent twice                                         |
 
 So one person's corrections never change how another person's transactions are categorized.
 
-Uploading a statement saves only the rows that aren't stored yet. Each row gets a SHA-256 fingerprint from its date, amount, type and description, and `(user_id, fingerprint)` is unique in the table. If the same payment appears twice in one file (two bus tickets in the same minute), the second copy also gets its position in the file mixed in, so both are kept, and re-uploading the file still matches. One limit: the same month exported once as PDF and once as CSV can be saved twice, because the description text or the time can differ between formats.
+Uploading a statement saves only the rows that aren't stored yet. Each row gets a SHA-256 fingerprint from its date, original amount, type and description (plus the currency code when it isn't AMD), and `(user_id, fingerprint)` is unique in the table. If the same payment appears twice in one file (two bus tickets in the same minute), the second copy also gets its position in the file mixed in, so both are kept, and re-uploading the file still matches. One limit: the same month exported once as PDF and once as CSV can be saved twice, because the description text or the time can differ between formats.
 
 The upload itself goes to a temporary file that is deleted right after reading, so real statements don't stay on disk.
 
@@ -257,14 +281,38 @@ The thresholds are constructor arguments of `SpendingAdvisor`.
 
 The Alerts tab shows payments from the last 90 days of your history that are worth a second look. Each check is its own `AlertRule` class, so a new check is one new class:
 
-| Rule | Fires when |
-| --- | --- |
-| `DuplicateChargeRule` | The same merchant charges the same amount (5,000 AMD or more) again within 10 minutes, or on the same day when the statement has no times |
-| `NewMerchantLargeRule` | The first payment to a merchant is above both 30,000 AMD and the 95th percentile of your payments. Known recurring payments don't count |
-| `PriceIncreaseRule` | A recurring payment's latest amount is 15% or more above its earlier median (utilities skipped, their amounts always vary) |
-| `NightPaymentRule` | A payment of 10,000 AMD or more between 01:00 and 05:00 (only when the statement has times) |
+
+| Rule                   | Fires when                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DuplicateChargeRule`  | The same merchant charges the same amount (5,000 AMD or more) again within 10 minutes, or on the same day when the statement has no times |
+| `NewMerchantLargeRule` | The first payment to a merchant is above both 30,000 AMD and the 95th percentile of your payments. Known recurring payments don't count   |
+| `PriceIncreaseRule`    | A recurring payment's latest amount is 15% or more above its earlier median (utilities skipped, their amounts always vary)                |
+| `NightPaymentRule`     | A payment of 10,000 AMD or more between 01:00 and 05:00 (only when the statement has times)                                               |
 
 These are hints, not proof of fraud, and the tab says so.
+
+## Foreign currencies
+
+Budgets, the advisor and the alerts all work in AMD, so a statement in another currency is converted to AMD when it's loaded. Supported currencies: AMD, USD, EUR, RUB, GBP, GEL, AED (UAE dirham) and CNY (Chinese yuan).
+
+The statement currency is found in this order:
+
+1. The header above the table: `Հաշվի արժույթ` in Ameriabank, Evocabank and ACBA statements, or `Արժույթ` with `ՀՀ դրամ` under it in Idram. In the Ameriabank PDF it's read from the totals lines (`... 123,456.00 AMD`).
+2. A code or symbol next to the amounts, like `-300.00 USD` in Ameriabank CSV exports or `-£23.40`.
+3. A currency column, but only when every row has the same value.
+4. AMD, when none of the above is found.
+
+The `Արժույթ` column in Ameriabank xlsx files is the currency of each purchase, not of the account, so it isn't trusted on its own. A Netflix payment in USD on an AMD card stays an AMD row with the amount the bank charged.
+
+Exchange rates come from [currencyapi.com](https://currencyapi.com) (free plan: 300 requests a month) with the key from `CURRENCY_API_KEY`. They're saved in `data/exchange_rates.json`. The app downloads them only when a foreign statement or currency needs them, and at most every 3 days. A new dated snapshot is added only if some currency moved 3% or more against AMD since the last one. Otherwise the file just records when it was checked. That keeps it at roughly 10 requests a month. Both numbers can be changed in `.env` with `CURRENCY_REFRESH_DAYS` and `CURRENCY_CHANGE_PCT`.
+
+Each transaction is converted with the newest snapshot on or before its date. Transactions older than the first snapshot use the first one, and the app says their AMD amounts are approximate. If the API can't be reached, the last saved rates are used. With no saved rates at all, the upload stops and asks for the key. After a failed download the app waits 6 hours before trying again (5 minutes if a needed currency is missing from the file), so Streamlit reruns don't eat the monthly limit.
+
+The values from the statement are kept in `original_amount` and `original_currency`. The duplicate check uses them, not the AMD amount, so loading the same USD statement again after the rates changed adds nothing.
+
+The Transaction Explorer has a currency picker. The table and its CSV or Excel download use the chosen currency, and the file name ends with its code (`transactions_export_USD.xlsx`). Each row is converted at the rate of its own date, and rows that were already in that currency show their original amount exactly. The saved data stays in AMD.
+
+On Streamlit Cloud the rates file is lost when the app restarts, which costs one extra request.
 
 ## Email reminders
 
@@ -306,13 +354,14 @@ The computer has to be on at that time. MySQL has to be running too, since the s
 
 Everything on screen comes from `locales/<code>.json`: labels, messages, table headers, category names, transaction types (Մուտք / Ելք), method names, bank names and the currency word. The data itself always stays in English (category keys, `income` / `expense`), so analytics, budgets and the ML model never depend on the language.
 
-| Task                   | How                                                                                                                                                                                        |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+
+| Task                   | How                                                                                                                                                                                |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Add a language         | Copy `locales/en.json` to `locales/<code>.json` (e.g. `ru.json`), set `"meta": {"name": "Русский"}`, translate the values. It appears in the language switch automatically. |
-| Edit text              | Change the value in that language's file. No code changes are needed.                                                                                                                      |
-| Remove a language      | Delete its file.                                                                                                                                                                           |
-| Find untranslated text | `python -m modules.i18n` lists missing and unknown keys per language                                                                                                                     |
-| Default language       | `DEFAULT_LANGUAGE` in `modules/i18n.py` (Armenian)                                                                                                                                     |
+| Edit text              | Change the value in that language's file. No code changes are needed.                                                                                                              |
+| Remove a language      | Delete its file.                                                                                                                                                                   |
+| Find untranslated text | `python -m modules.i18n` lists missing and unknown keys per language                                                                                                               |
+| Default language       | `DEFAULT_LANGUAGE` in `modules/i18n.py` (Armenian)                                                                                                                                 |
 
 Anything missing in a language falls back to English, then to the key itself, so a half-finished translation never crashes the app. Text placeholders such as `{count}` or `{currency}` must be kept as they are.
 
@@ -332,18 +381,20 @@ The language switch is on the login page too, and the choice is kept after signi
 6. Upload `data/fake_statement_recurring_demo.csv` and open the **Recurring Payments** tab (see [Recurring payments](#recurring-payments) for the expected list)
 7. Open **Advisor**: with the default budgets it warns about Insurance (a 45,000 quarterly payment against a 20,000 monthly limit) and Supermarket
 8. In **Budget & Anomalies**, pick a month and download its report
+9. With `CURRENCY_API_KEY` set, upload a statement in another currency. The sidebar shows which rates were used. In the **Transaction Explorer**, switch the currency and download the table
 
 ## Supported banks and formats
 
 Tested on real statements:
 
-| Bank                  | Formats   | Notes                                                                                                                                                |
-| --------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Ameriabank**  | CSV, XLSX | CSV payee column (`Շահառու/Վճարող`) is used; amounts are taken in the account currency, so USD card purchases are converted correctly |
-| **ACBA Bank**   | XLSX      | The merchant is read from `Գործարքի վայրը` (ACBA's description is only `Վճարում`)                                            |
-| **Idram**       | XLSX      | Debit / credit columns                                                                                                                               |
-| **Evocabank**   | XLSX      |                                                                                                                                                      |
-| **Other banks** | any       | Not tested, but any statement whose headers match the built-in hints is read                                                                         |
+
+| Bank            | Formats        | Notes                                                                                                                                                                                                                                                                                                   |
+| ----------------- | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ameriabank**  | CSV, XLSX, PDF | CSV payee column (`Շահառու/Վճարող`) is used. Amounts are taken in the account currency, so a USD purchase on an AMD card is stored at the AMD amount the bank charged. USD account statements are recognized from the header and converted (see [Foreign currencies](#foreign-currencies)) |
+| **ACBA Bank**   | XLSX           | The merchant is read from `Գործարքի վայրը` (ACBA's description is only `Վճարում`)                                                                                                                                                                                                   |
+| **Idram**       | XLSX           | Debit / credit columns                                                                                                                                                                                                                                                                                  |
+| **Evocabank**   | XLSX           |                                                                                                                                                                                                                                                                                                         |
+| **Other banks** | any            | Not tested, but any statement whose headers match the built-in hints is read                                                                                                                                                                                                                            |
 
 There is no per-bank configuration and no bank selection. Every file goes through the same steps:
 
@@ -400,28 +451,32 @@ The labelled file can be an export from the Transaction Explorer in any UI langu
 
 Results on 849 real transactions (Ameriabank, ACBA, Idram):
 
-| Test                                             | Accuracy | Other | Wrong guesses  |
-| ------------------------------------------------ | -------- | ----- | -------------- |
-| Full pipeline                                    | 98.9%    | 0.7%  | 0.4%           |
-| Unseen merchants, old thresholds (0.40 / 0.10)   | 62.6%    | 17.0% | 20.4%          |
-| Unseen merchants, tuned thresholds (0.25 / 0.20) | 63.4%    | 32.7% | **3.9%** |
+
+| Test                                             | Accuracy | Other | Wrong guesses |
+| -------------------------------------------------- | ---------- | ------- | --------------- |
+| Full pipeline                                    | 98.9%    | 0.7%  | 0.4%          |
+| Unseen merchants, old thresholds (0.40 / 0.10)   | 62.6%    | 17.0% | 20.4%         |
+| Unseen merchants, tuned thresholds (0.25 / 0.20) | 63.4%    | 32.7% | **3.9%**      |
 
 The tuned thresholds keep accuracy the same but cut wrong guesses about five-fold: the model says "Other" instead of guessing, and a wrong category would silently distort budgets.
 
 ## Unified transaction schema
 
-| Column                  | Type     | Description                                                                                                                                                 |
-| ----------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `date`                | datetime | Transaction date                                                                                                                                            |
-| `description`         | str      | Bank text; merchant/payee appended after `\|` when the bank stores it in a separate column                                                                 |
+
+| Column                | Type     | Description                                                                                                                                               |
+| ----------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `date`                | datetime | Transaction date                                                                                                                                          |
+| `description`         | str      | Bank text; merchant/payee appended after `|` when the bank stores it in a separate column                                                                 |
 | `cleaned_description` | str      | Same text after `TextNormalizer.clean` (lower-case; dates, times, card numbers, IDs and punctuation removed). Manual-override keywords are saved from it. |
-| `amount`              | float    | Absolute value in the account currency                                                                                                                      |
-| `transaction_type`    | str      | `income` or `expense`                                                                                                                                   |
-| `transaction_id`      | str      | Row identifier: the row number in a freshly loaded file, the database id for saved history                                                                  |
-| `category`            | str      | Assigned category key (English; shown translated in the UI)                                                                                                 |
-| `confidence`          | float    | Classification confidence (0–1)                                                                                                                            |
-| `method`              | str      | `Merchant rule`, `Keyword rule`, `Name heuristic`, `ML model`, `Vector`, `manual`, or `None`                                                  |
-| `fingerprint`         | str      | SHA-256 used to skip duplicates (only on rows loaded from the database)                                                                                     |
+| `amount`              | float    | Absolute value in AMD. Statements in other currencies are converted when loaded                                                                           |
+| `original_amount`     | float    | Absolute value as written in the statement                                                                                                                |
+| `original_currency`   | str      | Currency code of the statement (`AMD`, `USD`, `EUR` and so on)                                                                                            |
+| `transaction_type`    | str      | `income` or `expense`                                                                                                                                     |
+| `transaction_id`      | str      | Row identifier: the row number in a freshly loaded file, the database id for saved history                                                                |
+| `category`            | str      | Assigned category key (English; shown translated in the UI)                                                                                               |
+| `confidence`          | float    | Classification confidence (0–1)                                                                                                                          |
+| `method`              | str      | `Merchant rule`, `Keyword rule`, `Name heuristic`, `ML model`, `Vector`, `manual`, or `None`                                                              |
+| `fingerprint`         | str      | SHA-256 used to skip duplicates (only on rows loaded from the database)                                                                                   |
 
 ## Extending category rules
 
@@ -449,7 +504,19 @@ You can also use **Manual Category Override** in the UI. Those keywords are save
 
 ## Testing
 
-Visit [this link](https://statementanalyser-vahagmardyan.streamlit.app/) to use the application from any other device. Streamlit Cloud deletes local files on restart, so the online copy needs a hosted MySQL database, with the same `DB_*` values set in the app's Secrets instead of `.env`.
+Visit [this link](https://statementanalyser-vahagmardyan.streamlit.app/) to use the application from any other device. Streamlit Cloud deletes local files on restart, so the online copy uses a free TiDB Cloud database. Its `DB_*` values, `DB_SSL = "true"` and `CURRENCY_API_KEY` go in the app's Secrets instead of `.env`. Only made-up statements are uploaded there; real ones stay in the local MySQL.
+
+To update the TiDB schema from your own computer without editing `.env`, set the TiDB values for one PowerShell session. `.env` doesn't override variables that are already set:
+
+```powershell
+$env:DB_HOST = 'your-tidb-host'
+$env:DB_PORT = '4000'
+$env:DB_USER = 'your_tidb_user'
+$env:DB_PASSWORD = 'your_tidb_password'
+$env:DB_NAME = 'bank_analyser'
+$env:DB_SSL = 'true'
+python migrate_currency.py
+```
 
 ## Credits
 
