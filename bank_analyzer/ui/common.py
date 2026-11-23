@@ -72,12 +72,19 @@ def write_pending_cookie() -> None:
     through a tiny script. It runs on the run after the one that asked for
     it, because a script added right before st.rerun() would never reach the
     browser.
+
+    The slot is created on EVERY run, even when there is nothing to write.
+    Streamlit matches elements between runs by their position. If the script
+    took position 0 only on some runs, everything below would shift by one
+    and the old login form would stay on screen under the new one (seen when
+    pressing Enter in the login form right after signing out).
     """
+    slot = st.empty()
     value = st.session_state.pop(COOKIE_STATE_KEY, None)
     if value is None:
         return
     max_age = REMEMBER_DAYS * 24 * 3600 if value else 0
-    st.html(
+    slot.html(
         "<script>document.cookie = "
         f"'{REMEMBER_COOKIE}={value}; path=/; max-age={max_age}; SameSite=Lax'"
         " + (location.protocol === 'https:' ? '; Secure' : '');</script>",
