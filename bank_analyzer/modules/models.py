@@ -31,12 +31,19 @@ class ClassificationMethod(str, Enum):
     ML_MODEL = "ML model"
     VECTOR = "Vector"
     MANUAL = "manual"
+    USER_RULE = "User rule"            # keyword from this user's own override
+    COMMUNITY_RULE = "Community rule"  # keyword enough users agreed on
     NONE = "None"
 
 
 # Rows labelled by these methods are trusted enough to train on.
 TRUSTED_METHODS: frozenset[str] = frozenset(
-    {ClassificationMethod.MERCHANT_RULE.value, ClassificationMethod.KEYWORD_RULE.value}
+    {
+        ClassificationMethod.MERCHANT_RULE.value,
+        ClassificationMethod.KEYWORD_RULE.value,
+        ClassificationMethod.USER_RULE.value,
+        ClassificationMethod.COMMUNITY_RULE.value,
+    }
 )
 
 @dataclass(frozen=True)
@@ -117,7 +124,9 @@ class ClassifierProtocol(Protocol):
         new_category: str,
         cleaned_description: str,
         persist: bool = True,
-    ) -> None: ...
+    ) -> str:
+        """Learn the correction; return the keyword saved ('' if none)."""
+        ...
 
 
 @runtime_checkable

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import date
 
 import pandas as pd
@@ -14,7 +15,15 @@ from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 
 from .db import get_engine
 from .ml_model import TRAINING_COLUMNS, TrainingStore
-from .rules import JsonRuleRepository, RuleRepository, RuleSet
+from .rules import (
+    LEARNED_COMMUNITY,
+    LEARNED_USER,
+    CommunityRule,
+    JsonRuleRepository,
+    RuleRepository,
+    RuleSet,
+    agreed_rules,
+)
 from .budgets import BudgetRepository
 
 from .recurring import (
@@ -25,21 +34,67 @@ from .recurring import (
     RecurringRepository
 )
 
+class MySqlCommunityRules:
+    """Corrections many users agree on, computed from ``user_rules``.
+
+    No extra table: every user's overrides are already there. See
+    :func:`modules.rules.agreed_rules` for the agreement test. Defaults can be
+    changed in .env with COMMUNITY_MIN_USERS and COMMUNITY_MIN_SHARE.
+    """
+
+    def __init__(
+        self,
+        engine: Engine | None = None,
+        min_users: int | None = None,
+        min_share: float | None = None,
+    ) -> None:
+        self._engine = engine or get_engine()
+        self.min_users = min_users if min_users is not None else _env_int("COMMUNITY_MIN_USERS", 3)
+        self.min_share = (
+            min_share if min_share is not None else _env_float("COMMUNITY_MIN_SHARE", 0.75)
+        )
+
+    def load(self) -> list[CommunityRule]:
+        with self._engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "SELECT keyword, category, COUNT(DISTINCT user_id) "
+                    "FROM user_rules GROUP BY keyword, category"
+                )
+            ).all()
+        return agreed_rules(
+            ((kw, cat, n) for kw, cat, n in rows), self.min_users, self.min_share
+        )
+
+
 class MySqlRuleRepository(RuleRepository):
-    """Shared rules from JSON + this user's own keywords from MySQL."""
+    """Shared rules from JSON + community rules + this user's own keywords.
+
+    Later layers win for the same keyword: JSON < community < the user's own.
+    """
 
     def __init__(
             self,
             user_id: int,
             shared: RuleRepository | None = None,
-            engine: Engine | None = None
+            engine: Engine | None = None,
+            community: MySqlCommunityRules | None | bool = True,
             ):
         self.user_id = user_id
         self._shared = shared or JsonRuleRepository()
         self._engine = engine or get_engine()
+        if community is True:
+            community = MySqlCommunityRules(self._engine)
+        self._community = community or None
 
     def load(self) -> RuleSet:
         rules = self._shared.load()
+        known = set(rules.categories())
+        if self._community is not None:
+            for rule in self._community.load():
+                if rule.category in known:  # ignore categories that no longer exist
+                    rules.set_learned(rule.category, rule.keyword, LEARNED_COMMUNITY)
+
         with self._engine.connect() as conn:
             rows = conn.execute(
                 text("SELECT category, keyword FROM user_rules WHERE user_id = :uid"),
@@ -47,16 +102,17 @@ class MySqlRuleRepository(RuleRepository):
             ).all()
 
         for category, keyword in rows:
-            rules.add_keyword(category, keyword)
+            rules.set_learned(category, keyword, LEARNED_USER)
 
         return rules
 
     def save(self, rules: RuleSet) -> None:
-        shared = set(self._shared.load().iter_keyword_rules())
+        # Only the user's own overrides. Community rules are loaded into the
+        # same RuleSet; saving them here would count them as this user's vote.
         personal = [
-            {"uid": self.user_id, 'cat' : category, 'kw': keyword}
-            for category, keyword in rules.iter_keyword_rules()
-            if (category, keyword) not in shared
+            {"uid": self.user_id, "cat": category, "kw": keyword}
+            for keyword, category, source in rules.iter_learned()
+            if source == LEARNED_USER
         ]
         if not personal:
             return
@@ -68,6 +124,20 @@ class MySqlRuleRepository(RuleRepository):
                     "ON DUPLICATE KEY UPDATE category = VALUES(category)"
                 ), personal
             )
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, "") or default)
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, "") or default)
+    except ValueError:
+        return default
 
 class MySqlTrainingExampleStore(TrainingStore):
     """The ML model's learned rows for one user."""

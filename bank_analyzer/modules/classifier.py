@@ -31,7 +31,7 @@ from .models import (
     ClassificationResult,
     TransactionType,
 )
-from .rules import JsonRuleRepository, RuleRepository, RuleSet
+from .rules import LEARNED_USER, JsonRuleRepository, RuleRepository, RuleSet
 from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 
 RESULT_COLUMNS = ["category", "confidence", "method"]
@@ -153,16 +153,25 @@ class TransactionClassifier:
         new_category: str,
         cleaned_description: str,
         persist: bool = True,
-    ) -> None:
+    ) -> str:
         """Save a correction as a keyword rule and as a strong training example.
+
+        The keyword is the meaningful part of the text ("vilex"), not the
+        whole line with bank boilerplate, so it also matches the next
+        statement and other users can agree on it. It is checked before
+        merchant rules (see LearnedRuleHandler).
 
         ``transaction_id`` is kept for interface compatibility: rules are
         description-based, so the override applies to every matching text.
+        Returns the saved keyword ('' if nothing was saved).
         """
         del transaction_id
-        keyword = self._normalizer.clean(cleaned_description)
+        keyword = self._normalizer.override_keyword(
+            cleaned_description,
+            is_generic=lambda run: self._matcher.find_keyword_match(run) is not None,
+        )
         if not keyword:
-            return
+            return ""
 
         if self.model is not None:
             # Store the example first; the rule change below triggers the refit.
@@ -171,12 +180,24 @@ class TransactionClassifier:
                 source=TrainingSource.MANUAL,
                 persist=persist,
             )
-        rule_added = self._rules.add_keyword(new_category, keyword)
-        if not rule_added and self.model is not None:
+        changed = self._rules.set_learned(new_category, keyword, LEARNED_USER)
+        # Older own rules that also match this text (for example the long
+        # keywords saved before) must follow the new decision, otherwise the
+        # longer one would keep winning.
+        cleaned = self._normalizer.clean(cleaned_description)
+        for old, category, source in list(self._rules.iter_learned()):
+            if (
+                source == LEARNED_USER
+                and category != new_category
+                and RuleMatcher.alias_matches(old, cleaned)
+            ):
+                changed = self._rules.set_learned(new_category, old, LEARNED_USER) or changed
+        if not changed and self.model is not None:
             self.model.fit()  # rules unchanged, so no notification - refit here
 
         if persist:
             self._repository.save(self._rules)
+        return keyword
 
     def learn_from_dataframe(self, classified: pd.DataFrame, persist: bool = True) -> int:
         """Self-training: store rows the rules labelled with certainty, retrain.

@@ -12,6 +12,7 @@ import pandas as pd
 import streamlit as st
 
 from modules.i18n import Translator
+from modules.models import User
 from modules.remember import REMEMBER_DAYS, RememberMeService
 
 USER_STATE_KEY = "user"
@@ -23,6 +24,9 @@ REMEMBER_COOKIE = "bsa_remember"
 BASE_DIR = Path(__file__).resolve().parent.parent  # bank_analyzer/
 DATE_DISPLAY_FORMAT = "%Y-%m-%d, %H:%M"
 LANGUAGE_STATE_KEY = "language"
+# Set by code (sign-in, account settings) and applied by render_language_switch
+# before the radio is drawn: a widget's own key can't be changed after that.
+PENDING_LANGUAGE_KEY = "pending_language"
 FLAG_FONT_PATH = BASE_DIR / "assets" / "fonts" / "TwemojiCountryFlags.woff2"
 # Code points of flag emoji only: the font is used for nothing else.
 FLAG_UNICODE_RANGE = (
@@ -108,6 +112,9 @@ def render_language_switch(tr: Translator) -> None:
         st.markdown(css, unsafe_allow_html=True)
     languages = tr.languages()
     codes = list(languages)
+    pending = st.session_state.pop(PENDING_LANGUAGE_KEY, None)
+    if pending in codes:
+        st.session_state[LANGUAGE_STATE_KEY] = pending
     options = {}
     # After sign-out the language is put back into session_state by code;
     # passing a default index as well would make Streamlit show a warning.
@@ -122,6 +129,12 @@ def render_language_switch(tr: Translator) -> None:
         **options,
     )
     tr.language = st.session_state[LANGUAGE_STATE_KEY]
+
+
+def use_account_language(user: User) -> None:
+    """Switch the app to the user's account language on the next run."""
+    if user.language:
+        st.session_state[PENDING_LANGUAGE_KEY] = user.language
 
 
 def money(value: float) -> str:

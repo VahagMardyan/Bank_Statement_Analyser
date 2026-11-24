@@ -1,6 +1,7 @@
 {
   "meta": {
     "name": "",
+    "label": "English",
     "flag": "🇬🇧",
     "currency": "AMD"
   },
@@ -56,7 +57,9 @@
     "error_invalid_input": "Enter a valid email and a name.",
     "error_wrong_password": "Wrong password.",
     "error_empty_name": "Name can't be empty.",
-    "remember_me": "Keep me signed in"
+    "remember_me": "Keep me signed in",
+    "account_language": "Account language",
+    "account_language_help": "The app opens in this language after you sign in, and reminder emails use it. You can change it later in Account settings."
   },
   "account": {
     "header": "Account settings",
@@ -79,8 +82,12 @@
     "delete_success": "Account deleted.",
     "confirm": "I understand this can't be undone",
     "confirm_required": "Tick the confirmation box first.",
+    "language_header": "Language",
+    "language_help": "The app opens in this language after you sign in, and reminder emails use it. The switch at the top of the sidebar changes only the current session.",
+    "language_button": "Save",
+    "language_success": "Language saved.",
     "notify_header": "Email reminders",
-    "notify_help": "Sent to {email}: a reminder before each recurring payment, and a warning when a category goes over its budget. Emails use the language you have on now.",
+    "notify_help": "Sent to {email}: a reminder before each recurring payment, and a warning when a category goes over its budget. Emails use your account language.",
     "notify_enabled": "Send me reminders",
     "notify_days": "Days before a payment",
     "notify_button": "Save",
@@ -255,6 +262,8 @@
     "ML model": "ML model",
     "Vector": "Fuzzy match",
     "manual": "Manual",
+    "User rule": "Your rule",
+    "Community rule": "Community rule",
     "None": "Not classified"
   },
   "categories": {

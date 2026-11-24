@@ -53,6 +53,12 @@ class Locale:
         return str(self.data.get("meta", {}).get("name", self.code))
 
     @property
+    def label(self) -> str:
+        """Plain language name for lists and dropdowns, e.g. 'English'."""
+        meta = self.data.get("meta", {})
+        return str(meta.get("label") or meta.get("name") or self.code)
+
+    @property
     def flag(self) -> str:
         """Flag emoji for the language switch, e.g. '🇦🇲' (optional)."""
         return str(self.data.get("meta", {}).get("flag", ""))
@@ -150,6 +156,10 @@ class Translator:
     def languages(self) -> dict[str, str]:
         """``{code: "🇦🇲 Հայերեն"}`` for the language switch (flag is optional)."""
         return {code: f"{loc.flag} {loc.name}".strip() for code, loc in self._locales.items()}
+
+    def language_names(self) -> dict[str, str]:
+        """``{code: "Հայերեն"}`` without flags, for dropdowns (account language)."""
+        return {code: loc.label for code, loc in self._locales.items()}
 
     # lookup
     def _lookup(self, key: str) -> Any:

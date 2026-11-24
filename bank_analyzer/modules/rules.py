@@ -15,7 +15,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Iterator, Optional, Protocol
+from typing import Any, Callable, Iterable, Iterator, Optional, Protocol
 
 from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 
@@ -56,18 +56,70 @@ class CategoryRule:
         }
 
 
+@dataclass(frozen=True)
+class CommunityRule:
+    """A keyword enough users mapped to the same category."""
+
+    keyword: str
+    category: str
+    users: int        # users who chose this category for the keyword
+    total_users: int  # users who corrected this keyword at all
+
+    @property
+    def share(self) -> float:
+        return self.users / self.total_users if self.total_users else 0.0
+
+
+def agreed_rules(
+    counts: Iterable[tuple[str, str, int]],
+    min_users: int = 3,
+    min_share: float = 0.75,
+) -> list[CommunityRule]:
+    """Pick the corrections users agree on.
+
+    ``counts``: ``(keyword, category, distinct users)`` rows, e.g. from
+    ``user_rules`` grouped by keyword and category. A keyword becomes a
+    community rule when its most chosen category has at least ``min_users``
+    users AND at least ``min_share`` of everyone who corrected that keyword.
+    So 3 users saying Shopping and 2 saying Cafes (60%) gives no rule.
+    """
+    by_keyword: dict[str, dict[str, int]] = {}
+    for keyword, category, users in counts:
+        if keyword and category:
+            cats = by_keyword.setdefault(keyword, {})
+            cats[category] = cats.get(category, 0) + int(users)
+    agreed: list[CommunityRule] = []
+    for keyword, cats in by_keyword.items():
+        total = sum(cats.values())
+        category, users = max(cats.items(), key=lambda kv: (kv[1], kv[0]))
+        if users >= min_users and users / total >= min_share:
+            agreed.append(CommunityRule(keyword, category, users, total))
+    return sorted(agreed, key=lambda r: (r.category, r.keyword))
+
+
 class RuleSetObserver(Protocol):
     """Anything that must react when the rules change."""
 
     def on_rules_changed(self, rules: "RuleSet") -> None: ...
 
 
+# Where a learned keyword came from (see RuleSet.set_learned).
+LEARNED_USER = "user"            # this user's own override
+LEARNED_COMMUNITY = "community"  # enough other users agreed on it
+
+
 class RuleSet:
-    """Observable collection of :class:`CategoryRule` keyed by category name."""
+    """Observable collection of :class:`CategoryRule` keyed by category name.
+
+    Keywords learned from overrides are also listed in ``_learned`` with their
+    source. They are checked before merchant aliases, so a correction can
+    fix a wrong merchant rule from category_rules.json.
+    """
 
     def __init__(self, rules: Optional[dict[str, CategoryRule]] = None) -> None:
         self._rules: dict[str, CategoryRule] = dict(rules or {})
         self._observers: list[RuleSetObserver] = []
+        self._learned: dict[str, tuple[str, str]] = {}  # keyword -> (category, source)
 
     # ---------------------------------------------------------- observer API
     def subscribe(self, observer: RuleSetObserver, notify_now: bool = True) -> None:
@@ -113,6 +165,11 @@ class RuleSet:
                 for alias in merchant.aliases:
                     yield category, alias
 
+    def iter_learned(self) -> Iterator[tuple[str, str, str]]:
+        """Yield ``(keyword, category, source)`` for keywords learned from overrides."""
+        for keyword, (category, source) in self._learned.items():
+            yield keyword, category, source
+
     def to_dict(self) -> dict[str, dict[str, Any]]:
         return {category: rule.to_dict() for category, rule in self._rules.items()}
 
@@ -125,6 +182,38 @@ class RuleSet:
         if keyword in rule.keywords:
             return False
         rule.keywords.append(keyword)
+        self._notify()
+        return True
+
+    def set_learned(
+        self, category: str, keyword: str, source: str = LEARNED_USER
+    ) -> bool:
+        """Point ``keyword`` at ``category`` (and only there), marked as learned.
+
+        The keyword is removed from every other category, so one text never
+        matches two categories with the same keyword. Returns True (and
+        notifies) only if something changed.
+        """
+        if not keyword:
+            return False
+        rule = self._rules.setdefault(category, CategoryRule())
+        unchanged = (
+            self._learned.get(keyword) == (category, source)
+            and keyword in rule.keywords
+            and not any(
+                keyword in other.keywords
+                for name, other in self._rules.items()
+                if name != category
+            )
+        )
+        if unchanged:
+            return False
+        for name, other in self._rules.items():
+            if name != category and keyword in other.keywords:
+                other.keywords.remove(keyword)
+        if keyword not in rule.keywords:
+            rule.keywords.append(keyword)
+        self._learned[keyword] = (category, source)
         self._notify()
         return True
 
@@ -144,6 +233,7 @@ class RuleSet:
             ]
             removed += len(rule.merchants) - len(kept_merchants)
             rule.merchants = kept_merchants
+        self._learned = {k: v for k, v in self._learned.items() if not should_remove(k)}
         if removed:
             self._notify()
         return removed

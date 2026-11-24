@@ -12,7 +12,8 @@ from modules.remember import RememberMeService
 from modules.users import AuthError, AuthService
 
 from .common import (COOKIE_CHECKED_KEY, COOKIE_STATE_KEY, REMEMBER_STATE_KEY, USER_STATE_KEY,
-                     remember_cookie, render_language_switch, show_flash)
+                     remember_cookie, render_language_switch, show_flash,
+                     use_account_language)
 
 
 class AuthPage:
@@ -54,10 +55,21 @@ class AuthPage:
             name = st.text_input(self.tr.t('auth.display_name'))
             email = st.text_input(self.tr.t('auth.email'))
             password = st.text_input(self.tr.t('auth.password'), type='password')
+            languages = self.tr.language_names()
+            codes = list(languages)
+            language = st.selectbox(
+                self.tr.t('auth.account_language'),
+                codes,
+                index=codes.index(self.tr.language) if self.tr.language in codes else 0,
+                format_func=languages.get,
+                help=self.tr.t('auth.account_language_help'),
+            )
             keep = st.checkbox(self.tr.t("auth.remember_me"), value=True, key="register_keep")
             submitted = st.form_submit_button(self.tr.t('auth.register_button'), type='primary')
         if submitted:
-            self._sign_in(lambda: self.auth.register(email, password, name), keep)
+            self._sign_in(
+                lambda: self.auth.register(email, password, name, language), keep
+            )
 
     def _sign_in(self, action: Callable[[], User], keep_signed_in: bool) -> None:
         try:
@@ -66,6 +78,7 @@ class AuthPage:
             st.error(self.tr.t(exc.key))
             return
         st.session_state[USER_STATE_KEY] = user
+        use_account_language(user)
         if keep_signed_in:
             st.session_state[COOKIE_STATE_KEY] = self.remember.issue(user.id)
             st.session_state[REMEMBER_STATE_KEY] = True
@@ -81,4 +94,5 @@ class AuthPage:
         if user is not None:
             st.session_state[USER_STATE_KEY] = user
             st.session_state[REMEMBER_STATE_KEY] = True
+            use_account_language(user)
         return user

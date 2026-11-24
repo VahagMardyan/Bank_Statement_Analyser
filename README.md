@@ -20,7 +20,7 @@ The project follows SOLID principles and implements these design patterns:
 | **Strategy**                        | `StatementReader`, `PdfLayoutStrategy`, `ExportStrategy`, `AnomalyDetector`, `RecurringDetector`, `AlertRule`, `NotificationChannel`                                                           | Interchangeable algorithms for file formats (PDF / Excel / CSV), PDF layouts (borderless / table), exports (CSV / Excel) and anomaly detection (Z-score)                       |
 | **Factory**                         | `StatementReaderFactory`, `ExportStrategyFactory`                                                                                                                                              | Picks the right reader for a file and the right exporter for a UI choice                                                                                                       |
 | **Registry (decorator)**            | `@ExportStrategyFactory.register("CSV")`                                                                                                                                                       | A new export format is one new class; the factory is never edited (Open/Closed)                                                                                                |
-| **Chain of Responsibility**         | `ClassificationHandler` (`classification_handlers.py`)                                                                                                                                         | Primary description → merchant → keyword → individual entrepreneur → ML model → fuzzy match → `Other`                                                                    |
+| **Chain of Responsibility**         | `ClassificationHandler` (`classification_handlers.py`)                                                                                                                                         | Override keywords (yours, then community) → primary description → merchant → keyword → individual entrepreneur → ML model → fuzzy match → `Other` |
 | **Builder**                         | `ClassificationChainBuilder`                                                                                                                                                                   | Assembles the chain in one readable place; optional steps (the ML model) are skipped with `None`                                                                               |
 | **Observer**                        | `RuleSet.subscribe` → `RuleMatcher`, `FuzzyRuleIndex`, `LearnedCategoryModel` (`rules.py`)                                                                                                    | When an override adds a rule, every index and the ML model rebuild automatically                                                                                               |
 | **Repository**                      | `JsonRuleRepository` / `InMemoryRuleRepository`, `TrainingExampleStore`, `LocaleRepository`, `RateStore` (`currency.py`); MySQL versions in `mysql_repositories.py`, `users.py`, `remember.py` | Storage is hidden behind `load` / `save`. The same classifier works with JSON / CSV files or with MySQL, and evaluation runs on an in-memory copy that never touches your data |
@@ -102,6 +102,7 @@ UML class diagrams are in `UML/Mmd_Files/` (Mermaid source) and `UML/Png_Files/`
 │   ├── app.py                           # Streamlit entry point: shows the login page or the dashboard
 │   ├── send_reminders.py                # Daily job: sends reminder emails (or prints them with --dry-run)
 │   ├── migrate_currency.py              # One-time update for databases made before currency support
+│   ├── promote_rules.py                 # Copies community rules into config/category_rules.json
 │   └── evaluate_classifier.py           # Accuracy evaluation + threshold tuning
 ├── requirements.txt
 ├── README.md
@@ -202,9 +203,9 @@ Everything a user does is stored under their id:
 
 | Table                | What's in it                                                                                          |
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
-| `users`              | Email, name, password hash, language                                                                  |
+| `users`              | Email, name, password hash, account language                                                          |
 | `transactions`       | Every uploaded transaction with its category, the amount in AMD, and the original amount and currency |
-| `user_rules`         | Keywords from your manual overrides. The shared rules stay in `category_rules.json` for everyone      |
+| `user_rules`         | Keywords from your manual overrides. When enough users agree on one, it becomes a community rule for everyone (see [Overrides and community rules](#overrides-and-community-rules)) |
 | `training_examples`  | What the ML model has learned for you                                                                 |
 | `recurring_payments` | Detected regular payments, including the ones you hid                                                 |
 | `auth_tokens`        | "Keep me signed in" tokens                                                                            |
@@ -224,6 +225,7 @@ The facade keeps the loaded history and recurring list in memory between Streaml
 Under **Account settings** in the sidebar you can:
 
 - change your name
+- change the account language: the app opens in it after you sign in, and reminder emails use it
 - change your password (asks for the current one)
 - clear your history: deletes your transactions and detected recurring payments, but keeps your category corrections
 - delete your account: asks for your password, then `ON DELETE CASCADE` removes everything stored for you
@@ -316,7 +318,7 @@ On Streamlit Cloud the rates file is lost when the app restarts, which costs one
 
 ## Email reminders
 
-Turn reminders on under **Account settings → Email reminders** and choose how many days before a payment to be reminded (3 by default). Emails go out in the language the app was in when you saved the setting.
+Turn reminders on under **Account settings → Email reminders** and choose how many days before a payment to be reminded (3 by default). Emails are written in your account language.
 
 `send_reminders.py` sends one email per user with:
 
@@ -357,11 +359,11 @@ Everything on screen comes from `locales/<code>.json`: labels, messages, table h
 
 | Task                   | How                                                                                                                                                                                |
 | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Add a language         | Copy `locales/en.json` to `locales/<code>.json` (e.g. `ru.json`), set `"meta": {"name": "Русский"}`, translate the values. It appears in the language switch automatically. |
+| Add a language         | Copy `locales/en.json` to `locales/<code>.json` (e.g. `ru.json`), set `"meta"` (`"flag": "🇷🇺"` for the sidebar switch, `"label": "Русский"` for the account language list), translate the values. It appears in both automatically. |
 | Edit text              | Change the value in that language's file. No code changes are needed.                                                                                                              |
 | Remove a language      | Delete its file.                                                                                                                                                                   |
 | Find untranslated text | `python -m modules.i18n` lists missing and unknown keys per language                                                                                                               |
-| Default language       | `DEFAULT_LANGUAGE` in `modules/i18n.py` (Armenian)                                                                                                                                 |
+| Default language       | `DEFAULT_LANGUAGE` in `modules/i18n.py` (Armenian). Used on the login page until someone signs in                                                                             |
 
 Anything missing in a language falls back to English, then to the key itself, so a half-finished translation never crashes the app. Text placeholders such as `{count}` or `{currency}` must be kept as they are.
 
@@ -369,7 +371,7 @@ Exports use the on-screen language. `evaluate_classifier.py` maps headers and va
 
 Not translatable from the locale files: Streamlit's built-in upload-box text and the date-picker calendar, and error details from the file loader.
 
-The language switch is on the login page too, and the choice is kept after signing in and out.
+Every account has its own language. You pick it when you create the account (the list starts at the language the page is in), and you can change it later in **Account settings**. After signing in, including with "Keep me signed in", the app switches to the account language. The switch at the top of the sidebar changes only the current session; it doesn't change the account. After signing out, the login page stays in the language you last had on.
 
 ## Quick test with sample data
 
@@ -406,6 +408,7 @@ There is no per-bank configuration and no bank selection. Every file goes throug
 
 Each transaction goes through the chain until one step is confident:
 
+0. **Your corrections and community rules:** keywords saved from manual overrides are checked before everything else, so a correction also beats a wrong merchant rule from `category_rules.json`. Your own rule wins over a community rule for the same keyword. Confidence 1.0, method `User rule` or `Community rule` (see [Overrides and community rules](#overrides-and-community-rules)).
 1. **Bank description first:** the loader appends the merchant/payee after `|`. The merchant and keyword rules are tried on the bank's own description before the payee, so `Commission | ՀԱՊՀ` is a Fee, not tuition.
 2. **Merchant rule:** known merchant alias from `category_rules.json` (longest match wins), e.g. `ART LUNCH` → Cafes and Restaurants. Confidence 1.0.
 3. **Keyword rule:** category keyword (Armenian / English / Russian), e.g. `ուսման վարձ` → Education. Confidence 0.95.
@@ -427,13 +430,33 @@ Each transaction goes through the chain until one step is confident:
 
 Expense rows can never be classified as `Income` or `Salary`.
 
-**Feedback loop:** a manual override does three things:
+### Overrides and community rules
 
-- adds a keyword to your own rules (the `user_rules` table; `category_rules.json` when running without a database)
-- re-labels identical rows on screen and in your saved history
+A manual override does three things:
+
+- saves a keyword to your own rules (the `user_rules` table; `category_rules.json` when running without a database)
+- re-labels the rows that keyword matches, on screen and in your saved history
 - retrains the model
 
-The rule change notifies the matcher, the fuzzy index and the model, so the correction applies to future statements too.
+The keyword is the meaningful part of the description, not the whole line. For `Ք: VILEX LLC VILEX LLC 051 Ամերիաբանկ ՓԲԸ Գլխամասային գրասենյակ` it saves `vilex`: the bank boilerplate and numbers are dropped, and the longest remaining run of words (up to 4) is kept. Runs that are only category words, like `transfer to`, are skipped when there's something better, so one correction doesn't catch every transfer. The keyword is always a continuous piece of the cleaned text, so it matches the next statement with the same merchant. Keywords saved before this change keep working, and correcting the same text again moves them to the new category too.
+
+When several users correct the same keyword the same way, it becomes a **community rule** that applies to everyone:
+
+- at least 3 different users chose that category for the keyword, and
+- they are at least 75% of all users who corrected that keyword. So 3 users saying Shopping and 2 saying Cafes (60%) gives no rule.
+
+Both numbers can be changed in `.env` with `COMMUNITY_MIN_USERS` and `COMMUNITY_MIN_SHARE`. Community rules are computed from `user_rules` when an account is opened, so there's no extra table, and they work on Streamlit Cloud too. A community rule never overrides your own correction, and it isn't saved as your vote.
+
+To make community rules part of the shared JSON file (and of git), run `promote_rules.py` from `bank_analyzer`:
+
+```powershell
+python promote_rules.py            # shows what would change, changes nothing
+python promote_rules.py --write    # writes config/category_rules.json
+```
+
+It adds each keyword to its category and removes it from other categories. When a merchant in another category matches the same text, it doesn't change the merchant but prints a `check` line, because inside the JSON merchant rules come before keywords. Look at the result with `git diff config/category_rules.json` before committing. For TiDB, set the `DB_*` values in the PowerShell session first, the same way as for `migrate_currency.py` (see [Testing](#testing)).
+
+The rule change notifies the matcher, the fuzzy index and the model, so the correction applies to future statements right away.
 
 ## Evaluation
 
@@ -475,7 +498,7 @@ The tuned thresholds keep accuracy the same but cut wrong guesses about five-fol
 | `transaction_id`      | str      | Row identifier: the row number in a freshly loaded file, the database id for saved history                                                                |
 | `category`            | str      | Assigned category key (English; shown translated in the UI)                                                                                               |
 | `confidence`          | float    | Classification confidence (0–1)                                                                                                                          |
-| `method`              | str      | `Merchant rule`, `Keyword rule`, `Name heuristic`, `ML model`, `Vector`, `manual`, or `None`                                                              |
+| `method`              | str      | `User rule`, `Community rule`, `Merchant rule`, `Keyword rule`, `Name heuristic`, `ML model`, `Vector`, `manual`, or `None`                           |
 | `fingerprint`         | str      | SHA-256 used to skip duplicates (only on rows loaded from the database)                                                                                   |
 
 ## Extending category rules
@@ -500,7 +523,7 @@ Older formats are still accepted:
 - the flat list form: `"Transport": ["taxi", "yandex"]`
 - keys with an inline label: `"Transport | Տրանսպորտ"` (only the part before `|` is used)
 
-You can also use **Manual Category Override** in the UI. Those keywords are saved for your account only, and the model retrains. Editing `category_rules.json` changes the rules for everyone.
+You can also use **Manual Category Override** in the UI. Those keywords are saved for your account, and the model retrains. Once enough users agree on a correction it applies to everyone, and `promote_rules.py` copies it into this file (see [Overrides and community rules](#overrides-and-community-rules)). Editing `category_rules.json` by hand changes the rules for everyone right away.
 
 ## Testing
 

@@ -13,7 +13,7 @@ from modules.remember import RememberMeService
 from modules.users import AuthError, AuthService, NotificationSettings
 
 from .common import (COOKIE_STATE_KEY, FLASH_STATE_KEY, REMEMBER_STATE_KEY, USER_STATE_KEY,
-                     md_escape, show_flash, sign_out)
+                     md_escape, show_flash, sign_out, use_account_language)
 
 
 class AccountPanel:
@@ -43,6 +43,8 @@ class AccountPanel:
         with st.expander(self.tr.t("account.header")):
             self._render_rename()
             st.divider()
+            self._render_language()
+            st.divider()
             self._render_notifications()
             st.divider()
             self._render_password()
@@ -59,6 +61,23 @@ class AccountPanel:
         if submitted:
             self._run(lambda: self._rename(name), "account.rename_success")
 
+    def _render_language(self) -> None:
+        languages = self.tr.language_names()
+        codes = list(languages)
+        current = self.user.language if self.user.language in codes else self.tr.language
+        with st.form("language_form"):
+            st.markdown(f"**{self.tr.t('account.language_header')}**")
+            st.caption(self.tr.t("account.language_help"))
+            language = st.selectbox(
+                self.tr.t("auth.account_language"),
+                codes,
+                index=codes.index(current) if current in codes else 0,
+                format_func=languages.get,
+            )
+            submitted = st.form_submit_button(self.tr.t("account.language_button"))
+        if submitted:
+            self._run(lambda: self._set_language(language), "account.language_success")
+
     def _render_notifications(self) -> None:
         settings = self.auth.notification_settings(self.user)
         with st.form("notifications_form"):
@@ -71,8 +90,8 @@ class AccountPanel:
             )
             submitted = st.form_submit_button(self.tr.t("account.notify_button"))
         if submitted:
-            # Emails go out in the language the user is looking at right now.
-            new = NotificationSettings(enabled, int(days), self.tr.language)
+            # Emails use the account language (set above), not the one on screen.
+            new = NotificationSettings(enabled, int(days), settings.language)
             self._run(
                 lambda: self.auth.save_notification_settings(self.user, new),
                 "account.notify_success",
@@ -116,6 +135,11 @@ class AccountPanel:
     # actions
     def _rename(self, name: str) -> None:
         st.session_state[USER_STATE_KEY] = self.auth.rename(self.user, name)
+
+    def _set_language(self, language: str) -> None:
+        user = self.auth.set_language(self.user, language)
+        st.session_state[USER_STATE_KEY] = user
+        use_account_language(user)
 
     def _change_password(self, current: str, new: str) -> None:
         self.auth.change_password(self.user, current, new)

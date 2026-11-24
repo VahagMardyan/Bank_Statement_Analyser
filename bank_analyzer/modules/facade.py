@@ -13,8 +13,9 @@ from .alerts import Alert, SuspiciousActivityDetector
 from .analytics import AnalyticsService
 from .anomaly import AnomalyDetector
 from .budgets import BudgetRepository
+from .classification_handlers import RuleMatcher
 from .classifier import TransactionClassifier
-from .constants import DEFAULT_BUDGETS
+from .constants import DEFAULT_BUDGETS, INCOME_CATEGORIES
 from .currency import SUPPORTED_CURRENCIES, ConversionInfo, CurrencyConverter
 from .history import TransactionRepository
 from .ingestion import BankStatementLoader
@@ -25,6 +26,7 @@ from .models import (
     KPIMetrics,
     SelfTrainingClassifier,
     StatementLoaderProtocol,
+    TransactionType,
 )
 from .mysql_repositories import (
     MySqlBudgetRepository,
@@ -211,18 +213,25 @@ class BankAnalyzerFacade:
     def override_category(
         self, df: pd.DataFrame, transaction_id: str, new_category: str
     ) -> pd.DataFrame:
-        """Relabel one transaction and every row with the same cleaned text."""
+        """Relabel one transaction and every row the saved keyword matches."""
         match = df[df["transaction_id"] == transaction_id]
         if match.empty:
             return df
 
         cleaned = str(match.iloc[0]["cleaned_description"])
-        self._classifier.manual_override(transaction_id, new_category, cleaned)
+        keyword = self._classifier.manual_override(transaction_id, new_category, cleaned)
 
         out = df.copy()
-        affected = (out["transaction_id"] == transaction_id) | (
-            out["cleaned_description"] == cleaned
-        )
+        same_text = out["cleaned_description"] == cleaned
+        if keyword:
+            # Rows the new rule will match from now on, like other VILEX payments.
+            same_text |= out["cleaned_description"].astype(str).map(
+                lambda text: RuleMatcher.alias_matches(keyword, text)
+            )
+        if new_category in INCOME_CATEGORIES and "transaction_type" in out.columns:
+            # An expense can never be Income/Salary, same as in classification.
+            same_text &= out["transaction_type"] != TransactionType.EXPENSE.value
+        affected = (out["transaction_id"] == transaction_id) | same_text
         out.loc[affected, "category"] = new_category
         out.loc[affected, "method"] = ClassificationMethod.MANUAL.value
         out.loc[affected, "confidence"] = 1.0

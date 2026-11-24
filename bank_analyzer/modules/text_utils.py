@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Iterable
+from typing import Callable, Iterable, Optional
 
 DATE_RE = re.compile(
     r"\b\d{1,2}[./\-]\d{1,2}[./\-]\d{2,4}\b|\b\d{4}[./\-]\d{1,2}[./\-]\d{1,2}\b"
@@ -77,6 +77,45 @@ class TextNormalizer:
             for tok in self.clean(text).split()
             if tok not in self._noise and not tok.isdigit()
         )
+
+    def override_keyword(
+        self,
+        text: str,
+        is_generic: Optional[Callable[[str], bool]] = None,
+        max_tokens: int = 4,
+        min_chars: int = 4,
+    ) -> str:
+        """The part of a description worth saving as a rule after an override.
+
+        "ք vilex llc vilex llc 051 ամերիաբանկ փբը գլխամասային գրասենյակ"
+        becomes "vilex". The result is always one contiguous piece of
+        :meth:`clean` output, so the substring matcher still finds it.
+
+        Steps: split the cleaned text at boilerplate tokens and bare numbers,
+        take the longest remaining run (first ``max_tokens`` words). Runs for
+        which ``is_generic`` is true (category words such as "transfer to")
+        are only used when nothing else is left. If no run has ``min_chars``
+        letters, the whole cleaned text is returned, as before.
+        """
+        cleaned = self.clean(text)
+        runs: list[str] = []
+        current: list[str] = []
+        for tok in cleaned.split():
+            if tok in self._noise or tok.isdigit():
+                if current:
+                    runs.append(" ".join(current[:max_tokens]))
+                current = []
+            else:
+                current.append(tok)
+        if current:
+            runs.append(" ".join(current[:max_tokens]))
+
+        size = lambda run: len(run.replace(" ", ""))  # noqa: E731
+        runs = [r for r in runs if size(r) >= min_chars]
+        if not runs:
+            return cleaned
+        specific = [r for r in runs if not (is_generic and is_generic(r))]
+        return max(specific or runs, key=size)
 
     @staticmethod
     def token_windows(text: str, max_len: int = 3) -> list[str]:

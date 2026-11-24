@@ -21,7 +21,7 @@ MAX_PASSWORD_BYTES = 72 # bcrypt's hard limit
 class NotificationSettings:
     enabled: bool
     days_before: int   # remind this many days before a recurring payment
-    language: str      # language of the emails
+    language: str      # account language; emails are sent in it
 
 
 class AuthError(Exception):
@@ -40,11 +40,16 @@ class UserRepository(ABC):
         """Return (user, password_hash) or None"""
 
     @abstractmethod
-    def create(self, email: str, password_hash: str, display_name: str) -> User:
+    def create(
+        self, email: str, password_hash: str, display_name: str, language: str = "hy"
+    ) -> User:
         pass
 
     @abstractmethod
     def update_display_name(self, user_id: int, display_name: str) -> None: ...
+
+    @abstractmethod
+    def update_language(self, user_id: int, language: str) -> None: ...
 
     @abstractmethod
     def update_password_hash(self, user_id: int, password_hash: str) -> None: ...
@@ -83,22 +88,23 @@ class MySqlUserRepository(UserRepository):
             )
             return user, row['password_hash']
 
-    def create(self, email, password_hash, display_name) -> User:
+    def create(self, email, password_hash, display_name, language="hy") -> User:
         try:
             with self._engine.begin() as conn:
                 result = conn.execute(
                     text(
-                        "INSERT INTO users (email, password_hash, display_name)"
-                        "VALUES (:email, :password_hash, :display_name)"
+                        "INSERT INTO users (email, password_hash, display_name, language) "
+                        "VALUES (:email, :password_hash, :display_name, :language)"
                     ),
-                    {'email' : email, "password_hash": password_hash, "display_name": display_name}
+                    {'email' : email, "password_hash": password_hash,
+                     "display_name": display_name, "language": language}
                 )
 
                 new_id = result.lastrowid
         except IntegrityError:
             raise AuthError('auth.error_email_taken') from None
 
-        return User(id=new_id, email=email, display_name=display_name, language='hy')
+        return User(id=new_id, email=email, display_name=display_name, language=language)
 
     def find_by_id(self, user_id: int) -> Optional[tuple[User, str]]:
         with self._engine.connect() as conn:
@@ -123,6 +129,12 @@ class MySqlUserRepository(UserRepository):
         self._execute(
             "UPDATE users SET display_name = :name WHERE id = :id",
             {"name": display_name, "id": user_id},
+        )
+
+    def update_language(self, user_id: int, language: str) -> None:
+        self._execute(
+            "UPDATE users SET language = :lang WHERE id = :id",
+            {"lang": language, "id": user_id},
         )
 
     def update_password_hash(self, user_id: int, password_hash: str) -> None:
@@ -182,7 +194,9 @@ class AuthService:
     def _normalize_email(email: str) -> str:
         return email.strip().lower()
 
-    def register(self, email: str, password: str, display_name: str) -> User:
+    def register(
+        self, email: str, password: str, display_name: str, language: str = "hy"
+    ) -> User:
         email = self._normalize_email(email)
         display_name = display_name.strip()
 
@@ -190,7 +204,9 @@ class AuthService:
             raise AuthError('auth.error_invalid_input')
 
         self._validate_password(password)
-        return self._users.create(email, self._hasher.hash(password), display_name)
+        return self._users.create(
+            email, self._hasher.hash(password), display_name, self._check_language(language)
+        )
 
     def login(self, email: str, password: str) -> User:
         found = self._users.find_by_email(self._normalize_email(email))
@@ -210,6 +226,20 @@ class AuthService:
             raise AuthError("auth.error_empty_name")
         self._users.update_display_name(user.id, name)
         return replace(user, display_name=name)
+
+    def set_language(self, user: User, language: str) -> User:
+        """Account language: the app opens in it after signing in, emails use it."""
+        language = self._check_language(language)
+        self._users.update_language(user.id, language)
+        return replace(user, language=language)
+
+    @staticmethod
+    def _check_language(language: str) -> str:
+        # users.language is VARCHAR(5): locale file names like "hy", "en", "ru".
+        language = (language or "").strip()
+        if not language or len(language) > 5:
+            raise AuthError("auth.error_invalid_input")
+        return language
 
     def change_password(self, user: User, current: str, new: str) -> None:
         self._check_password(user, current)

@@ -2,6 +2,7 @@
 
 Order (assembled by :class:`ClassificationChainBuilder`):
     1. PrimaryDescriptionHandler  - rules on the bank's own description only
+    0. LearnedRuleHandler         - keywords from overrides (yours, then the community's)
     2. MerchantRuleHandler        - merchant aliases on the full text
     3. KeywordRuleHandler         - category keywords on the full text
     4. IndividualEntrepreneurHandler - person-named card payees (ԱՁ / IE)
@@ -31,9 +32,10 @@ from .models import (
     ClassificationRequest,
     ClassificationResult,
 )
-from .rules import RuleSet
+from .rules import LEARNED_COMMUNITY, RuleSet
 from .text_utils import DEFAULT_NORMALIZER, TextNormalizer
 
+LEARNED_CONFIDENCE = 1.0
 MERCHANT_CONFIDENCE = 1.0
 KEYWORD_CONFIDENCE = 0.95
 NAME_HEURISTIC_CONFIDENCE = 0.7
@@ -46,6 +48,8 @@ class RuleMatcher:
     def __init__(self) -> None:
         self._merchants: list[tuple[str, str, str]] = []
         self._keywords: list[tuple[str, str, str]] = []
+        self._learned: list[tuple[str, str, str]] = []
+        self._learned_source: dict[str, str] = {}
 
     def on_rules_changed(self, rules: RuleSet) -> None:
         # Stored as (category, label, alias) so one lookup routine serves both.
@@ -53,6 +57,8 @@ class RuleMatcher:
             (c, name or alias, alias) for c, name, alias in rules.iter_merchant_rules()
         ]
         self._keywords = [(c, kw, kw) for c, kw in rules.iter_keyword_rules()]
+        self._learned = [(c, kw, kw) for kw, c, _src in rules.iter_learned()]
+        self._learned_source = {kw: src for kw, _c, src in rules.iter_learned()}
 
     @staticmethod
     def alias_matches(alias: str, text: str) -> bool:
@@ -83,6 +89,13 @@ class RuleMatcher:
     def find_keyword_match(self, text: str) -> Optional[tuple[str, str]]:
         """Return ``(category, keyword)`` or None."""
         return self._longest(self._keywords, text)
+
+    def find_learned_match(self, text: str) -> Optional[tuple[str, str, str]]:
+        """Return ``(category, keyword, source)`` for override keywords, or None."""
+        match = self._longest(self._learned, text)
+        if match is None:
+            return None
+        return match[0], match[1], self._learned_source.get(match[1], "")
 
 
 class FuzzyRuleIndex:
@@ -198,6 +211,33 @@ class ClassificationHandler(ABC):
         self, request: ClassificationRequest
     ) -> Optional[ClassificationResult]:
         """Return a result if this handler can classify the request, else None."""
+
+
+class LearnedRuleHandler(ClassificationHandler):
+    """Keywords saved from manual overrides, checked before everything else.
+
+    Without this step a correction lost to a merchant alias from
+    category_rules.json on every new statement. The user's own rules and the
+    community rules share one index; a user's own rule replaces a community
+    rule for the same keyword (see MySqlRuleRepository.load).
+    """
+
+    def __init__(self, matcher: RuleMatcher) -> None:
+        super().__init__()
+        self._matcher = matcher
+
+    def try_classify(
+        self, request: ClassificationRequest
+    ) -> Optional[ClassificationResult]:
+        match = self._matcher.find_learned_match(request.cleaned)
+        if match is None or not request.allows(match[0]):
+            return None
+        method = (
+            ClassificationMethod.COMMUNITY_RULE
+            if match[2] == LEARNED_COMMUNITY
+            else ClassificationMethod.USER_RULE
+        )
+        return ClassificationResult(match[0], LEARNED_CONFIDENCE, method.value)
 
 
 class PrimaryDescriptionHandler(ClassificationHandler):
@@ -393,10 +433,11 @@ def build_classification_chain(
     fuzzy_index: FuzzyRuleIndex,
     model: Optional[LearnedCategoryModel] = None,
 ) -> ClassificationHandler:
-    """Default chain: primary description -> merchant -> keyword ->
-    entrepreneur name -> learned model -> fuzzy vector -> Other."""
+    """Default chain: override keywords -> primary description -> merchant ->
+    keyword -> entrepreneur name -> learned model -> fuzzy vector -> Other."""
     return (
         ClassificationChainBuilder()
+        .then(LearnedRuleHandler(matcher))
         .then(PrimaryDescriptionHandler(matcher))
         .then(MerchantRuleHandler(matcher))
         .then(KeywordRuleHandler(matcher))
