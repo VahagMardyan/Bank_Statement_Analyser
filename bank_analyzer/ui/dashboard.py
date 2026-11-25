@@ -77,7 +77,11 @@ class DashboardApp:
         self._render_metrics(self.analyzer.compute_kpis(df))
         for tab, container in zip(self.tabs, st.tabs([t.title for t in self.tabs])):
             with container:
-                tab.render(df)
+                # A fragment: a widget inside this tab (a filter, the slider,
+                # the currency picker) reruns only this tab, not all six.
+                # Actions that change data call st.rerun(), which reruns
+                # the whole page.
+                st.fragment(tab.render)(df)
 
     # sidebar
     def _render_account(self) -> None:

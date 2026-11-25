@@ -177,7 +177,7 @@ cd bank_analyzer
 streamlit run app.py
 ```
 
-The app opens in your browser (default: http://localhost:8501). On Windows, `runner.bat` does the same.
+The app opens in your browser (default: http://localhost:8501). On Windows, `runner.bat` does the same: it activates `.venv` first, so you can double-click it or run it from any folder.
 
 ### What's on screen
 
@@ -187,7 +187,7 @@ The app opens in your browser (default: http://localhost:8501). On Windows, `run
 | **Login page**           | Sign in or create an account, "Keep me signed in", language switch                                                                                                                     |
 | **Sidebar**              | Language switch, your name and email, sign out, account settings, statement upload (CSV / XLS / XLSX / PDF), which exchange rates were used for a foreign statement, date range filter |
 | **Metrics**              | Total income, expenses, net savings, transaction count                                                                                                                                 |
-| **Visual Analytics**     | Donut chart, monthly trends, top 5 expenses                                                                                                                                            |
+| **Visual Analytics**     | Expenses by category (horizontal bars, largest first, with amount and share), monthly trends, top 5 expenses                                                                           |
 | **Transaction Explorer** | Filterable table with `confidence` and `method` columns, currency picker, CSV / Excel export in the chosen currency, manual category override                                          |
 | **Budget & Anomalies**   | Month selector, saved monthly limits per category, progress bars, monthly .xlsx report, Z-score anomaly detection                                                                      |
 | **Recurring Payments**   | Detected regular payments with amount, period, last and next payment date, days left; wrong ones can be hidden, missing ones added by hand                                             |

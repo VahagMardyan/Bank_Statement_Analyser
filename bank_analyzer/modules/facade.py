@@ -89,6 +89,19 @@ class BankAnalyzerFacade:
     def _invalidate(self) -> None:
         self._cache.clear()
 
+    def _cached_today(self, key: str, compute: Callable[[], Any]) -> Any:
+        """Like :meth:`_cached`, for results that also depend on today's date.
+
+        Alerts, advice and the forecast are computed from the whole stored
+        history, so they're the same on every Streamlit rerun until the data
+        changes (which calls :meth:`_invalidate`) or the day changes.
+        Without a history backend they depend on the ``df`` passed in, so
+        nothing is cached.
+        """
+        if self._history is None:
+            return compute()
+        return self._cached(f"{key}@{date.today().isoformat()}", compute)
+
     # Read-only access for tests and tools; UI code should use the methods below.
     @property
     def loader(self) -> StatementLoaderProtocol:
@@ -273,32 +286,44 @@ class BankAnalyzerFacade:
 
     def get_budgets(self) -> dict[str, float]:
         """Default limits, overwritten by whatever this user saved."""
-        saved = self._budgets.load() if self._budgets is not None else {}
+        saved = (
+            dict(self._cached("budgets", self._budgets.load))
+            if self._budgets is not None else {}
+        )
         return {**{c: float(v) for c, v in DEFAULT_BUDGETS.items()}, **saved}
 
     def save_budgets(self, budgets: dict[str, float]) -> None:
         if self._budgets is not None:
             self._budgets.save(budgets)
+            # Budgets feed the advice; history and recurring stay cached.
+            for key in [k for k in self._cache if k == "budgets" or k.startswith("advice@")]:
+                del self._cache[key]
 
     # advisor and alerts work on the whole stored history, not the date filter
     def _full_history(self, df: Optional[pd.DataFrame]) -> Optional[pd.DataFrame]:
         return self.load_history() if self._history is not None else df
 
     def spending_advice(self, df: Optional[pd.DataFrame]) -> list[Advice]:
-        history = self._full_history(df)
-        recurring = self.recurring_payments(history)
-        names = recurring["name"] if not recurring.empty else []
-        return self._advisor.advise(history, self.get_budgets(), names)
+        def compute() -> list[Advice]:
+            history = self._full_history(df)
+            recurring = self.recurring_payments(history)
+            names = recurring["name"] if not recurring.empty else []
+            return self._advisor.advise(history, self.get_budgets(), names)
+        return list(self._cached_today("advice", compute))
 
     def month_forecast(self, df: Optional[pd.DataFrame]) -> Optional[MonthForecast]:
-        history = self._full_history(df)
-        return self._advisor.forecast(history, self.recurring_payments(history))
+        def compute() -> Optional[MonthForecast]:
+            history = self._full_history(df)
+            return self._advisor.forecast(history, self.recurring_payments(history))
+        return self._cached_today("forecast", compute)
 
     def suspicious_activity(self, df: Optional[pd.DataFrame]) -> list[Alert]:
-        history = self._full_history(df)
-        recurring = self.recurring_payments(history)
-        names = recurring["name"] if not recurring.empty else []
-        return self._alert_detector.detect(history, names)
+        def compute() -> list[Alert]:
+            history = self._full_history(df)
+            recurring = self.recurring_payments(history)
+            names = recurring["name"] if not recurring.empty else []
+            return self._alert_detector.detect(history, names)
+        return list(self._cached_today("alerts", compute))
 
     @staticmethod
     def months(df: pd.DataFrame) -> list[pd.Period]:

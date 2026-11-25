@@ -16,6 +16,8 @@ from .common import (COOKIE_STATE_KEY, FLASH_STATE_KEY, REMEMBER_STATE_KEY, USER
                      md_escape, show_flash, sign_out, use_account_language)
 
 
+NOTIFY_STATE_KEY = "notify_settings"  # (user id, NotificationSettings)
+
 class AccountPanel:
     """Sidebar block: current user, account settings and sign out."""
 
@@ -78,8 +80,16 @@ class AccountPanel:
         if submitted:
             self._run(lambda: self._set_language(language), "account.language_success")
 
+    def _notification_settings(self) -> NotificationSettings:
+        """Read once per session instead of on every rerun (one query less per click)."""
+        cached = st.session_state.get(NOTIFY_STATE_KEY)
+        if cached is None or cached[0] != self.user.id:
+            cached = (self.user.id, self.auth.notification_settings(self.user))
+            st.session_state[NOTIFY_STATE_KEY] = cached
+        return cached[1]
+
     def _render_notifications(self) -> None:
-        settings = self.auth.notification_settings(self.user)
+        settings = self._notification_settings()
         with st.form("notifications_form"):
             st.markdown(f"**{self.tr.t('account.notify_header')}**")
             st.caption(self.tr.t("account.notify_help", email=self.user.email))
@@ -92,6 +102,7 @@ class AccountPanel:
         if submitted:
             # Emails use the account language (set above), not the one on screen.
             new = NotificationSettings(enabled, int(days), settings.language)
+            st.session_state.pop(NOTIFY_STATE_KEY, None)  # read again after saving
             self._run(
                 lambda: self.auth.save_notification_settings(self.user, new),
                 "account.notify_success",
@@ -137,6 +148,7 @@ class AccountPanel:
         st.session_state[USER_STATE_KEY] = self.auth.rename(self.user, name)
 
     def _set_language(self, language: str) -> None:
+        st.session_state.pop(NOTIFY_STATE_KEY, None)  # emails follow the account language
         user = self.auth.set_language(self.user, language)
         st.session_state[USER_STATE_KEY] = user
         use_account_language(user)

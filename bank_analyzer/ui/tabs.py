@@ -51,6 +51,9 @@ def alerts_table(tr: Translator, alerts: list[Alert]) -> pd.DataFrame:
     return table
 
 
+BUDGET_SAVED_KEY = "budget_saved"  # shows "saved" after the full rerun
+
+
 class DashboardTab(ABC):
     """One tab of the dashboard."""
 
@@ -82,7 +85,7 @@ class VisualAnalyticsTab(DashboardTab):
     def render(self, df: pd.DataFrame) -> None:
         col1, col2 = st.columns(2)
         with col1:
-            self._render_pie(self.analyzer.category_summary(df))
+            self._render_categories(self.analyzer.category_summary(df))
         with col2:
             self._render_trend(self.analyzer.monthly_trends(df))
 
@@ -93,19 +96,41 @@ class VisualAnalyticsTab(DashboardTab):
         else:
             self.table(top5[["date", "description", "category", "amount"]])
 
-    def _render_pie(self, summary: pd.DataFrame) -> None:
+    def _render_categories(self, summary: pd.DataFrame) -> None:
+        """Expenses by category as horizontal bars, largest on top.
+
+        Bars instead of a pie: lengths are easier to compare than angles, and
+        long category names (Armenian ones especially) fit on the axis.
+        """
         if summary.empty:
             st.info(self.tr.t("visual.no_expense_data"))
             return
-        fig = px.pie(
-            self.tr.localize(summary, headers=False),
-            names="category",
-            values="total_spend",
-            hole=0.45,
-            title=self.tr.t("visual.pie_title"),
-            labels={c: self.tr.column(c) for c in ("category", "total_spend")},
+        # Plotly draws the first row at the bottom, so sort ascending.
+        data = self.tr.localize(summary, headers=False).sort_values("total_spend")
+        data["label"] = [
+            f"{money(total)} ({pct:.0f}%)"
+            for total, pct in zip(data["total_spend"], data["pct_of_total"])
+        ]
+        fig = px.bar(
+            data,
+            x="total_spend",
+            y="category",
+            orientation="h",
+            text="label",
+            title=self.tr.t("visual.category_title"),
+            labels={"total_spend": self.tr.t("visual.axis_spend"), "category": ""},
         )
-        fig.update_traces(textposition="inside", textinfo="percent+label")
+        fig.update_traces(
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="%{y}<br>%{x:,.0f}<extra></extra>",
+        )
+        fig.update_layout(
+            height=max(320, 36 * len(data) + 120),
+            # room on the right for the labels of the longest bar
+            xaxis_range=[0, float(data["total_spend"].max()) * 1.35],
+            margin={"r": 20},
+        )
         st.plotly_chart(fig, width="stretch")
 
     def _render_trend(self, trends: pd.DataFrame) -> None:
@@ -312,6 +337,10 @@ class BudgetAnomaliesTab(DashboardTab):
                 submitted = st.form_submit_button(self.tr.t("budget.save"), type="primary")
         if submitted:
             self.analyzer.save_budgets(values)
+            # Whole page again: the Advisor tab uses these limits too.
+            st.session_state[BUDGET_SAVED_KEY] = True
+            st.rerun()
+        if st.session_state.pop(BUDGET_SAVED_KEY, False):
             st.success(self.tr.t("budget.saved"))
         return values
 

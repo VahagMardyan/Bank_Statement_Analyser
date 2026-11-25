@@ -108,7 +108,7 @@
     "alerts": "Alerts"
   },
   "visual": {
-    "pie_title": "Expense Distribution by Category",
+    "category_title": "Expenses by Category",
     "no_expense_data": "No expense data to display.",
     "trend_title": "Monthly Spending Trends",
     "no_trend_data": "No trend data available.",
